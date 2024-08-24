@@ -5,7 +5,7 @@
  * Written by David Howells (dhowells@redhat.com)
  */
 
-#define pr_fmt(fmt) "blacklist: "fmt
+#define pr_fmt(fmt) "blacklist: " fmt
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/key.h>
@@ -24,10 +24,9 @@
  * the size of the currently longest supported hash algorithm is 512 bits,
  * which translates into 128 hex characters.
  */
-#define MAX_HASH_LEN	128
+#define MAX_HASH_LEN 128
 
-#define BLACKLIST_KEY_PERM (KEY_POS_SEARCH | KEY_POS_VIEW | \
-			    KEY_USR_SEARCH | KEY_USR_VIEW)
+#define BLACKLIST_KEY_PERM (KEY_POS_SEARCH | KEY_POS_VIEW | KEY_USR_SEARCH | KEY_USR_VIEW)
 
 static const char tbs_prefix[] = "tbs";
 static const char bin_prefix[] = "bin";
@@ -35,7 +34,7 @@ static const char bin_prefix[] = "bin";
 static struct key *blacklist_keyring;
 
 #ifdef CONFIG_SYSTEM_REVOCATION_LIST
-extern __initconst const u8 revocation_certificate_list[];
+extern __initconst const u8            revocation_certificate_list[];
 extern __initconst const unsigned long revocation_certificate_list_size;
 #endif
 
@@ -45,134 +44,138 @@ extern __initconst const unsigned long revocation_certificate_list_size;
  */
 static int blacklist_vet_description(const char *desc)
 {
-	int i, prefix_len, tbs_step = 0, bin_step = 0;
+    int i, prefix_len, tbs_step = 0, bin_step = 0;
 
-	/* The following algorithm only works if prefix lengths match. */
-	BUILD_BUG_ON(sizeof(tbs_prefix) != sizeof(bin_prefix));
-	prefix_len = sizeof(tbs_prefix) - 1;
-	for (i = 0; *desc; desc++, i++) {
-		if (*desc == ':') {
-			if (tbs_step == prefix_len)
-				goto found_colon;
-			if (bin_step == prefix_len)
-				goto found_colon;
-			return -EINVAL;
-		}
-		if (i >= prefix_len)
-			return -EINVAL;
-		if (*desc == tbs_prefix[i])
-			tbs_step++;
-		if (*desc == bin_prefix[i])
-			bin_step++;
-	}
-	return -EINVAL;
+    /* The following algorithm only works if prefix lengths match. */
+    BUILD_BUG_ON(sizeof(tbs_prefix) != sizeof(bin_prefix));
+    prefix_len = sizeof(tbs_prefix) - 1;
+    for (i = 0; *desc; desc++, i++)
+    {
+        if (*desc == ':')
+        {
+            if (tbs_step == prefix_len)
+                goto found_colon;
+            if (bin_step == prefix_len)
+                goto found_colon;
+            return -EINVAL;
+        }
+        if (i >= prefix_len)
+            return -EINVAL;
+        if (*desc == tbs_prefix[i])
+            tbs_step++;
+        if (*desc == bin_prefix[i])
+            bin_step++;
+    }
+    return -EINVAL;
 
 found_colon:
-	desc++;
-	for (i = 0; *desc && i < MAX_HASH_LEN; desc++, i++) {
-		if (!isxdigit(*desc) || isupper(*desc))
-			return -EINVAL;
-	}
-	if (*desc)
-		/* The hash is greater than MAX_HASH_LEN. */
-		return -ENOPKG;
+    desc++;
+    for (i = 0; *desc && i < MAX_HASH_LEN; desc++, i++)
+    {
+        if (!isxdigit(*desc) || isupper(*desc))
+            return -EINVAL;
+    }
+    if (*desc)
+        /* The hash is greater than MAX_HASH_LEN. */
+        return -ENOPKG;
 
-	/* Checks for an even number of hexadecimal characters. */
-	if (i == 0 || i & 1)
-		return -EINVAL;
-	return 0;
+    /* Checks for an even number of hexadecimal characters. */
+    if (i == 0 || i & 1)
+        return -EINVAL;
+    return 0;
 }
 
-static int blacklist_key_instantiate(struct key *key,
-		struct key_preparsed_payload *prep)
+static int blacklist_key_instantiate(struct key                   *key,
+                                     struct key_preparsed_payload *prep)
 {
 #ifdef CONFIG_SYSTEM_BLACKLIST_AUTH_UPDATE
-	int err;
+    int err;
 #endif
 
-	/* Sets safe default permissions for keys loaded by user space. */
-	key->perm = BLACKLIST_KEY_PERM;
+    /* Sets safe default permissions for keys loaded by user space. */
+    key->perm = BLACKLIST_KEY_PERM;
 
-	/*
-	 * Skips the authentication step for builtin hashes, they are not
-	 * signed but still trusted.
-	 */
-	if (key->flags & (1 << KEY_FLAG_BUILTIN))
-		goto out;
+    /*
+     * Skips the authentication step for builtin hashes, they are not
+     * signed but still trusted.
+     */
+    if (key->flags & (1 << KEY_FLAG_BUILTIN))
+        goto out;
 
 #ifdef CONFIG_SYSTEM_BLACKLIST_AUTH_UPDATE
-	/*
-	 * Verifies the description's PKCS#7 signature against the builtin
-	 * trusted keyring.
-	 */
-	err = verify_pkcs7_signature(key->description,
-			strlen(key->description), prep->data, prep->datalen,
-			NULL, VERIFYING_UNSPECIFIED_SIGNATURE, NULL, NULL);
-	if (err)
-		return err;
+    /*
+     * Verifies the description's PKCS#7 signature against the builtin
+     * trusted keyring.
+     */
+    err = verify_pkcs7_signature(key->description,
+                                 strlen(key->description), prep->data, prep->datalen,
+                                 NULL, VERIFYING_UNSPECIFIED_SIGNATURE, NULL, NULL);
+    if (err)
+        return err;
 #else
-	/*
-	 * It should not be possible to come here because the keyring doesn't
-	 * have KEY_USR_WRITE and the only other way to call this function is
-	 * for builtin hashes.
-	 */
-	WARN_ON_ONCE(1);
-	return -EPERM;
+    /*
+     * It should not be possible to come here because the keyring doesn't
+     * have KEY_USR_WRITE and the only other way to call this function is
+     * for builtin hashes.
+     */
+    WARN_ON_ONCE(1);
+    return -EPERM;
 #endif
 
 out:
-	return generic_key_instantiate(key, prep);
+    return generic_key_instantiate(key, prep);
 }
 
-static int blacklist_key_update(struct key *key,
-		struct key_preparsed_payload *prep)
+static int blacklist_key_update(struct key                   *key,
+                                struct key_preparsed_payload *prep)
 {
-	return -EPERM;
+    return -EPERM;
 }
 
 static void blacklist_describe(const struct key *key, struct seq_file *m)
 {
-	seq_puts(m, key->description);
+    seq_puts(m, key->description);
 }
 
 static struct key_type key_type_blacklist = {
-	.name			= "blacklist",
-	.vet_description	= blacklist_vet_description,
-	.instantiate		= blacklist_key_instantiate,
-	.update			= blacklist_key_update,
-	.describe		= blacklist_describe,
+    .name            = "blacklist",
+    .vet_description = blacklist_vet_description,
+    .instantiate     = blacklist_key_instantiate,
+    .update          = blacklist_key_update,
+    .describe        = blacklist_describe,
 };
 
 static char *get_raw_hash(const u8 *hash, size_t hash_len,
-		enum blacklist_hash_type hash_type)
+                          enum blacklist_hash_type hash_type)
 {
-	size_t type_len;
-	const char *type_prefix;
-	char *buffer, *p;
+    size_t      type_len;
+    const char *type_prefix;
+    char       *buffer, *p;
 
-	switch (hash_type) {
-	case BLACKLIST_HASH_X509_TBS:
-		type_len = sizeof(tbs_prefix) - 1;
-		type_prefix = tbs_prefix;
-		break;
-	case BLACKLIST_HASH_BINARY:
-		type_len = sizeof(bin_prefix) - 1;
-		type_prefix = bin_prefix;
-		break;
-	default:
-		WARN_ON_ONCE(1);
-		return ERR_PTR(-EINVAL);
-	}
-	buffer = kmalloc(type_len + 1 + hash_len * 2 + 1, GFP_KERNEL);
-	if (!buffer)
-		return ERR_PTR(-ENOMEM);
-	p = memcpy(buffer, type_prefix, type_len);
-	p += type_len;
-	*p++ = ':';
-	bin2hex(p, hash, hash_len);
-	p += hash_len * 2;
-	*p = '\0';
-	return buffer;
+    switch (hash_type)
+    {
+        case BLACKLIST_HASH_X509_TBS:
+            type_len    = sizeof(tbs_prefix) - 1;
+            type_prefix = tbs_prefix;
+            break;
+        case BLACKLIST_HASH_BINARY:
+            type_len    = sizeof(bin_prefix) - 1;
+            type_prefix = bin_prefix;
+            break;
+        default:
+            WARN_ON_ONCE(1);
+            return ERR_PTR(-EINVAL);
+    }
+    buffer = kmalloc(type_len + 1 + hash_len * 2 + 1, GFP_KERNEL);
+    if (!buffer)
+        return ERR_PTR(-ENOMEM);
+    p = memcpy(buffer, type_prefix, type_len);
+    p += type_len;
+    *p++ = ':';
+    bin2hex(p, hash, hash_len);
+    p += hash_len * 2;
+    *p = '\0';
+    return buffer;
 }
 
 /**
@@ -181,38 +184,38 @@ static char *get_raw_hash(const u8 *hash, size_t hash_len,
  */
 static int mark_raw_hash_blacklisted(const char *hash)
 {
-	key_ref_t key;
+    key_ref_t key;
 
-	key = key_create(make_key_ref(blacklist_keyring, true),
-			 "blacklist",
-			 hash,
-			 NULL,
-			 0,
-			 BLACKLIST_KEY_PERM,
-			 KEY_ALLOC_NOT_IN_QUOTA |
-			 KEY_ALLOC_BUILT_IN);
-	if (IS_ERR(key)) {
-		if (PTR_ERR(key) == -EEXIST)
-			pr_warn("Duplicate blacklisted hash %s\n", hash);
-		else
-			pr_err("Problem blacklisting hash %s: %pe\n", hash, key);
-		return PTR_ERR(key);
-	}
-	return 0;
+    key = key_create(make_key_ref(blacklist_keyring, true),
+                     "blacklist",
+                     hash,
+                     NULL,
+                     0,
+                     BLACKLIST_KEY_PERM,
+                     KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_BUILT_IN);
+    if (IS_ERR(key))
+    {
+        if (PTR_ERR(key) == -EEXIST)
+            pr_warn("Duplicate blacklisted hash %s\n", hash);
+        else
+            pr_err("Problem blacklisting hash %s: %pe\n", hash, key);
+        return PTR_ERR(key);
+    }
+    return 0;
 }
 
 int mark_hash_blacklisted(const u8 *hash, size_t hash_len,
-		enum blacklist_hash_type hash_type)
+                          enum blacklist_hash_type hash_type)
 {
-	const char *buffer;
-	int err;
+    const char *buffer;
+    int         err;
 
-	buffer = get_raw_hash(hash, hash_len, hash_type);
-	if (IS_ERR(buffer))
-		return PTR_ERR(buffer);
-	err = mark_raw_hash_blacklisted(buffer);
-	kfree(buffer);
-	return err;
+    buffer = get_raw_hash(hash, hash_len, hash_type);
+    if (IS_ERR(buffer))
+        return PTR_ERR(buffer);
+    err = mark_raw_hash_blacklisted(buffer);
+    kfree(buffer);
+    return err;
 }
 
 /**
@@ -222,34 +225,34 @@ int mark_hash_blacklisted(const u8 *hash, size_t hash_len,
  * @hash_type: Type of hash
  */
 int is_hash_blacklisted(const u8 *hash, size_t hash_len,
-		enum blacklist_hash_type hash_type)
+                        enum blacklist_hash_type hash_type)
 {
-	key_ref_t kref;
-	const char *buffer;
-	int ret = 0;
+    key_ref_t   kref;
+    const char *buffer;
+    int         ret = 0;
 
-	buffer = get_raw_hash(hash, hash_len, hash_type);
-	if (IS_ERR(buffer))
-		return PTR_ERR(buffer);
-	kref = keyring_search(make_key_ref(blacklist_keyring, true),
-			      &key_type_blacklist, buffer, false);
-	if (!IS_ERR(kref)) {
-		key_ref_put(kref);
-		ret = -EKEYREJECTED;
-	}
+    buffer = get_raw_hash(hash, hash_len, hash_type);
+    if (IS_ERR(buffer))
+        return PTR_ERR(buffer);
+    kref = keyring_search(make_key_ref(blacklist_keyring, true),
+                          &key_type_blacklist, buffer, false);
+    if (!IS_ERR(kref))
+    {
+        key_ref_put(kref);
+        ret = -EKEYREJECTED;
+    }
 
-	kfree(buffer);
-	return ret;
+    kfree(buffer);
+    return ret;
 }
 EXPORT_SYMBOL_GPL(is_hash_blacklisted);
 
 int is_binary_blacklisted(const u8 *hash, size_t hash_len)
 {
-	if (is_hash_blacklisted(hash, hash_len, BLACKLIST_HASH_BINARY) ==
-			-EKEYREJECTED)
-		return -EPERM;
+    if (is_hash_blacklisted(hash, hash_len, BLACKLIST_HASH_BINARY) == -EKEYREJECTED)
+        return -EPERM;
 
-	return 0;
+    return 0;
 }
 EXPORT_SYMBOL_GPL(is_binary_blacklisted);
 
@@ -261,24 +264,25 @@ EXPORT_SYMBOL_GPL(is_binary_blacklisted);
  */
 int add_key_to_revocation_list(const char *data, size_t size)
 {
-	key_ref_t key;
+    key_ref_t key;
 
-	key = key_create_or_update(make_key_ref(blacklist_keyring, true),
-				   "asymmetric",
-				   NULL,
-				   data,
-				   size,
-				   KEY_POS_VIEW | KEY_POS_READ | KEY_POS_SEARCH
-				   | KEY_USR_VIEW,
-				   KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_BUILT_IN
-				   | KEY_ALLOC_BYPASS_RESTRICTION);
+    key = key_create_or_update(make_key_ref(blacklist_keyring, true),
+                               "asymmetric",
+                               NULL,
+                               data,
+                               size,
+                               KEY_POS_VIEW | KEY_POS_READ | KEY_POS_SEARCH
+                                   | KEY_USR_VIEW,
+                               KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_BUILT_IN
+                                   | KEY_ALLOC_BYPASS_RESTRICTION);
 
-	if (IS_ERR(key)) {
-		pr_err("Problem with revocation key (%ld)\n", PTR_ERR(key));
-		return PTR_ERR(key);
-	}
+    if (IS_ERR(key))
+    {
+        pr_err("Problem with revocation key (%ld)\n", PTR_ERR(key));
+        return PTR_ERR(key);
+    }
 
-	return 0;
+    return 0;
 }
 
 /**
@@ -287,24 +291,24 @@ int add_key_to_revocation_list(const char *data, size_t size)
  */
 int is_key_on_revocation_list(struct pkcs7_message *pkcs7)
 {
-	int ret;
+    int ret;
 
-	ret = pkcs7_validate_trust(pkcs7, blacklist_keyring);
+    ret = pkcs7_validate_trust(pkcs7, blacklist_keyring);
 
-	if (ret == 0)
-		return -EKEYREJECTED;
+    if (ret == 0)
+        return -EKEYREJECTED;
 
-	return -ENOKEY;
+    return -ENOKEY;
 }
 #endif
 
-static int restrict_link_for_blacklist(struct key *dest_keyring,
-		const struct key_type *type, const union key_payload *payload,
-		struct key *restrict_key)
+static int restrict_link_for_blacklist(struct key            *dest_keyring,
+                                       const struct key_type *type, const union key_payload *payload,
+                                       struct key *restrict_key)
 {
-	if (type == &key_type_blacklist)
-		return 0;
-	return -EOPNOTSUPP;
+    if (type == &key_type_blacklist)
+        return 0;
+    return -EOPNOTSUPP;
 }
 
 /*
@@ -321,36 +325,34 @@ static int restrict_link_for_blacklist(struct key *dest_keyring,
  */
 static int __init blacklist_init(void)
 {
-	const char *const *bl;
-	struct key_restriction *restriction;
+    const char *const      *bl;
+    struct key_restriction *restriction;
 
-	if (register_key_type(&key_type_blacklist) < 0)
-		panic("Can't allocate system blacklist key type\n");
+    if (register_key_type(&key_type_blacklist) < 0)
+        panic("Can't allocate system blacklist key type\n");
 
-	restriction = kzalloc(sizeof(*restriction), GFP_KERNEL);
-	if (!restriction)
-		panic("Can't allocate blacklist keyring restriction\n");
-	restriction->check = restrict_link_for_blacklist;
+    restriction = kzalloc(sizeof(*restriction), GFP_KERNEL);
+    if (!restriction)
+        panic("Can't allocate blacklist keyring restriction\n");
+    restriction->check = restrict_link_for_blacklist;
 
-	blacklist_keyring =
-		keyring_alloc(".blacklist",
-			      GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, current_cred(),
-			      KEY_POS_VIEW | KEY_POS_READ | KEY_POS_SEARCH |
-			      KEY_POS_WRITE |
-			      KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH
+    blacklist_keyring =
+        keyring_alloc(".blacklist",
+                      GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, current_cred(),
+                      KEY_POS_VIEW | KEY_POS_READ | KEY_POS_SEARCH | KEY_POS_WRITE | KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH
 #ifdef CONFIG_SYSTEM_BLACKLIST_AUTH_UPDATE
-			      | KEY_USR_WRITE
+                          | KEY_USR_WRITE
 #endif
-			      , KEY_ALLOC_NOT_IN_QUOTA |
-			      KEY_ALLOC_SET_KEEP,
-			      restriction, NULL);
-	if (IS_ERR(blacklist_keyring))
-		panic("Can't allocate system blacklist keyring\n");
+                      ,
+                      KEY_ALLOC_NOT_IN_QUOTA | KEY_ALLOC_SET_KEEP,
+                      restriction, NULL);
+    if (IS_ERR(blacklist_keyring))
+        panic("Can't allocate system blacklist keyring\n");
 
-	for (bl = blacklist_hashes; *bl; bl++)
-		if (mark_raw_hash_blacklisted(*bl) < 0)
-			pr_err("- blacklisting failed\n");
-	return 0;
+    for (bl = blacklist_hashes; *bl; bl++)
+        if (mark_raw_hash_blacklisted(*bl) < 0)
+            pr_err("- blacklisting failed\n");
+    return 0;
 }
 
 /*
@@ -364,12 +366,12 @@ device_initcall(blacklist_init);
  */
 static __init int load_revocation_certificate_list(void)
 {
-	if (revocation_certificate_list_size)
-		pr_notice("Loading compiled-in revocation X.509 certificates\n");
+    if (revocation_certificate_list_size)
+        pr_notice("Loading compiled-in revocation X.509 certificates\n");
 
-	return x509_load_certificate_list(revocation_certificate_list,
-					  revocation_certificate_list_size,
-					  blacklist_keyring);
+    return x509_load_certificate_list(revocation_certificate_list,
+                                      revocation_certificate_list_size,
+                                      blacklist_keyring);
 }
 late_initcall(load_revocation_certificate_list);
 #endif

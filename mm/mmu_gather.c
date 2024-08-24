@@ -17,56 +17,58 @@
 
 static bool tlb_next_batch(struct mmu_gather *tlb)
 {
-	struct mmu_gather_batch *batch;
+    struct mmu_gather_batch *batch;
 
-	/* Limit batching if we have delayed rmaps pending */
-	if (tlb->delayed_rmap && tlb->active != &tlb->local)
-		return false;
+    /* Limit batching if we have delayed rmaps pending */
+    if (tlb->delayed_rmap && tlb->active != &tlb->local)
+        return false;
 
-	batch = tlb->active;
-	if (batch->next) {
-		tlb->active = batch->next;
-		return true;
-	}
+    batch = tlb->active;
+    if (batch->next)
+    {
+        tlb->active = batch->next;
+        return true;
+    }
 
-	if (tlb->batch_count == MAX_GATHER_BATCH_COUNT)
-		return false;
+    if (tlb->batch_count == MAX_GATHER_BATCH_COUNT)
+        return false;
 
-	batch = (void *)__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
-	if (!batch)
-		return false;
+    batch = (void *)__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
+    if (!batch)
+        return false;
 
-	tlb->batch_count++;
-	batch->next = NULL;
-	batch->nr   = 0;
-	batch->max  = MAX_GATHER_BATCH;
+    tlb->batch_count++;
+    batch->next = NULL;
+    batch->nr   = 0;
+    batch->max  = MAX_GATHER_BATCH;
 
-	tlb->active->next = batch;
-	tlb->active = batch;
+    tlb->active->next = batch;
+    tlb->active       = batch;
 
-	return true;
+    return true;
 }
 
-#ifdef CONFIG_SMP
+    #ifdef CONFIG_SMP
 static void tlb_flush_rmap_batch(struct mmu_gather_batch *batch, struct vm_area_struct *vma)
 {
-	struct encoded_page **pages = batch->encoded_pages;
+    struct encoded_page **pages = batch->encoded_pages;
 
-	for (int i = 0; i < batch->nr; i++) {
-		struct encoded_page *enc = pages[i];
+    for (int i = 0; i < batch->nr; i++)
+    {
+        struct encoded_page *enc = pages[i];
 
-		if (encoded_page_flags(enc) & ENCODED_PAGE_BIT_DELAY_RMAP) {
-			struct page *page = encoded_page_ptr(enc);
-			unsigned int nr_pages = 1;
+        if (encoded_page_flags(enc) & ENCODED_PAGE_BIT_DELAY_RMAP)
+        {
+            struct page *page     = encoded_page_ptr(enc);
+            unsigned int nr_pages = 1;
 
-			if (unlikely(encoded_page_flags(enc) &
-				     ENCODED_PAGE_BIT_NR_PAGES_NEXT))
-				nr_pages = encoded_nr_pages(pages[++i]);
+            if (unlikely(encoded_page_flags(enc) & ENCODED_PAGE_BIT_NR_PAGES_NEXT))
+                nr_pages = encoded_nr_pages(pages[++i]);
 
-			folio_remove_rmap_ptes(page_folio(page), page, nr_pages,
-					       vma);
-		}
-	}
+            folio_remove_rmap_ptes(page_folio(page), page, nr_pages,
+                                   vma);
+        }
+    }
 }
 
 /**
@@ -81,138 +83,146 @@ static void tlb_flush_rmap_batch(struct mmu_gather_batch *batch, struct vm_area_
  */
 void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct *vma)
 {
-	if (!tlb->delayed_rmap)
-		return;
+    if (!tlb->delayed_rmap)
+        return;
 
-	tlb_flush_rmap_batch(&tlb->local, vma);
-	if (tlb->active != &tlb->local)
-		tlb_flush_rmap_batch(tlb->active, vma);
-	tlb->delayed_rmap = 0;
+    tlb_flush_rmap_batch(&tlb->local, vma);
+    if (tlb->active != &tlb->local)
+        tlb_flush_rmap_batch(tlb->active, vma);
+    tlb->delayed_rmap = 0;
 }
-#endif
+    #endif
 
-/*
- * We might end up freeing a lot of pages. Reschedule on a regular
- * basis to avoid soft lockups in configurations without full
- * preemption enabled. The magic number of 512 folios seems to work.
- */
-#define MAX_NR_FOLIOS_PER_FREE		512
+    /*
+     * We might end up freeing a lot of pages. Reschedule on a regular
+     * basis to avoid soft lockups in configurations without full
+     * preemption enabled. The magic number of 512 folios seems to work.
+     */
+    #define MAX_NR_FOLIOS_PER_FREE 512
 
 static void __tlb_batch_free_encoded_pages(struct mmu_gather_batch *batch)
 {
-	struct encoded_page **pages = batch->encoded_pages;
-	unsigned int nr, nr_pages;
+    struct encoded_page **pages = batch->encoded_pages;
+    unsigned int          nr, nr_pages;
 
-	while (batch->nr) {
-		if (!page_poisoning_enabled_static() && !want_init_on_free()) {
-			nr = min(MAX_NR_FOLIOS_PER_FREE, batch->nr);
+    while (batch->nr)
+    {
+        if (!page_poisoning_enabled_static() && !want_init_on_free())
+        {
+            nr = min(MAX_NR_FOLIOS_PER_FREE, batch->nr);
 
-			/*
-			 * Make sure we cover page + nr_pages, and don't leave
-			 * nr_pages behind when capping the number of entries.
-			 */
-			if (unlikely(encoded_page_flags(pages[nr - 1]) &
-				     ENCODED_PAGE_BIT_NR_PAGES_NEXT))
-				nr++;
-		} else {
-			/*
-			 * With page poisoning and init_on_free, the time it
-			 * takes to free memory grows proportionally with the
-			 * actual memory size. Therefore, limit based on the
-			 * actual memory size and not the number of involved
-			 * folios.
-			 */
-			for (nr = 0, nr_pages = 0;
-			     nr < batch->nr && nr_pages < MAX_NR_FOLIOS_PER_FREE;
-			     nr++) {
-				if (unlikely(encoded_page_flags(pages[nr]) &
-					     ENCODED_PAGE_BIT_NR_PAGES_NEXT))
-					nr_pages += encoded_nr_pages(pages[++nr]);
-				else
-					nr_pages++;
-			}
-		}
+            /*
+             * Make sure we cover page + nr_pages, and don't leave
+             * nr_pages behind when capping the number of entries.
+             */
+            if (unlikely(encoded_page_flags(pages[nr - 1]) & ENCODED_PAGE_BIT_NR_PAGES_NEXT))
+                nr++;
+        }
+        else
+        {
+            /*
+             * With page poisoning and init_on_free, the time it
+             * takes to free memory grows proportionally with the
+             * actual memory size. Therefore, limit based on the
+             * actual memory size and not the number of involved
+             * folios.
+             */
+            for (nr = 0, nr_pages = 0;
+                 nr < batch->nr && nr_pages < MAX_NR_FOLIOS_PER_FREE;
+                 nr++)
+            {
+                if (unlikely(encoded_page_flags(pages[nr]) & ENCODED_PAGE_BIT_NR_PAGES_NEXT))
+                    nr_pages += encoded_nr_pages(pages[++nr]);
+                else
+                    nr_pages++;
+            }
+        }
 
-		free_pages_and_swap_cache(pages, nr);
-		pages += nr;
-		batch->nr -= nr;
+        free_pages_and_swap_cache(pages, nr);
+        pages += nr;
+        batch->nr -= nr;
 
-		cond_resched();
-	}
+        cond_resched();
+    }
 }
 
 static void tlb_batch_pages_flush(struct mmu_gather *tlb)
 {
-	struct mmu_gather_batch *batch;
+    struct mmu_gather_batch *batch;
 
-	for (batch = &tlb->local; batch && batch->nr; batch = batch->next)
-		__tlb_batch_free_encoded_pages(batch);
-	tlb->active = &tlb->local;
+    for (batch = &tlb->local; batch && batch->nr; batch = batch->next)
+        __tlb_batch_free_encoded_pages(batch);
+    tlb->active = &tlb->local;
 }
 
 static void tlb_batch_list_free(struct mmu_gather *tlb)
 {
-	struct mmu_gather_batch *batch, *next;
+    struct mmu_gather_batch *batch, *next;
 
-	for (batch = tlb->local.next; batch; batch = next) {
-		next = batch->next;
-		free_pages((unsigned long)batch, 0);
-	}
-	tlb->local.next = NULL;
+    for (batch = tlb->local.next; batch; batch = next)
+    {
+        next = batch->next;
+        free_pages((unsigned long)batch, 0);
+    }
+    tlb->local.next = NULL;
 }
 
 static bool __tlb_remove_folio_pages_size(struct mmu_gather *tlb,
-		struct page *page, unsigned int nr_pages, bool delay_rmap,
-		int page_size)
+                                          struct page *page, unsigned int nr_pages, bool delay_rmap,
+                                          int page_size)
 {
-	int flags = delay_rmap ? ENCODED_PAGE_BIT_DELAY_RMAP : 0;
-	struct mmu_gather_batch *batch;
+    int                      flags = delay_rmap ? ENCODED_PAGE_BIT_DELAY_RMAP : 0;
+    struct mmu_gather_batch *batch;
 
-	VM_BUG_ON(!tlb->end);
+    VM_BUG_ON(!tlb->end);
 
-#ifdef CONFIG_MMU_GATHER_PAGE_SIZE
-	VM_WARN_ON(tlb->page_size != page_size);
-	VM_WARN_ON_ONCE(nr_pages != 1 && page_size != PAGE_SIZE);
-	VM_WARN_ON_ONCE(page_folio(page) != page_folio(page + nr_pages - 1));
-#endif
+    #ifdef CONFIG_MMU_GATHER_PAGE_SIZE
+    VM_WARN_ON(tlb->page_size != page_size);
+    VM_WARN_ON_ONCE(nr_pages != 1 && page_size != PAGE_SIZE);
+    VM_WARN_ON_ONCE(page_folio(page) != page_folio(page + nr_pages - 1));
+    #endif
 
-	batch = tlb->active;
-	/*
-	 * Add the page and check if we are full. If so
-	 * force a flush.
-	 */
-	if (likely(nr_pages == 1)) {
-		batch->encoded_pages[batch->nr++] = encode_page(page, flags);
-	} else {
-		flags |= ENCODED_PAGE_BIT_NR_PAGES_NEXT;
-		batch->encoded_pages[batch->nr++] = encode_page(page, flags);
-		batch->encoded_pages[batch->nr++] = encode_nr_pages(nr_pages);
-	}
-	/*
-	 * Make sure that we can always add another "page" + "nr_pages",
-	 * requiring two entries instead of only a single one.
-	 */
-	if (batch->nr >= batch->max - 1) {
-		if (!tlb_next_batch(tlb))
-			return true;
-		batch = tlb->active;
-	}
-	VM_BUG_ON_PAGE(batch->nr > batch->max - 1, page);
+    batch = tlb->active;
+    /*
+     * Add the page and check if we are full. If so
+     * force a flush.
+     */
+    if (likely(nr_pages == 1))
+    {
+        batch->encoded_pages[batch->nr++] = encode_page(page, flags);
+    }
+    else
+    {
+        flags |= ENCODED_PAGE_BIT_NR_PAGES_NEXT;
+        batch->encoded_pages[batch->nr++] = encode_page(page, flags);
+        batch->encoded_pages[batch->nr++] = encode_nr_pages(nr_pages);
+    }
+    /*
+     * Make sure that we can always add another "page" + "nr_pages",
+     * requiring two entries instead of only a single one.
+     */
+    if (batch->nr >= batch->max - 1)
+    {
+        if (!tlb_next_batch(tlb))
+            return true;
+        batch = tlb->active;
+    }
+    VM_BUG_ON_PAGE(batch->nr > batch->max - 1, page);
 
-	return false;
+    return false;
 }
 
 bool __tlb_remove_folio_pages(struct mmu_gather *tlb, struct page *page,
-		unsigned int nr_pages, bool delay_rmap)
+                              unsigned int nr_pages, bool delay_rmap)
 {
-	return __tlb_remove_folio_pages_size(tlb, page, nr_pages, delay_rmap,
-					     PAGE_SIZE);
+    return __tlb_remove_folio_pages_size(tlb, page, nr_pages, delay_rmap,
+                                         PAGE_SIZE);
 }
 
 bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page,
-		bool delay_rmap, int page_size)
+                            bool delay_rmap, int page_size)
 {
-	return __tlb_remove_folio_pages_size(tlb, page, 1, delay_rmap, page_size);
+    return __tlb_remove_folio_pages_size(tlb, page, 1, delay_rmap, page_size);
 }
 
 #endif /* MMU_GATHER_NO_GATHER */
@@ -221,15 +231,15 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page,
 
 static void __tlb_remove_table_free(struct mmu_table_batch *batch)
 {
-	int i;
+    int i;
 
-	for (i = 0; i < batch->nr; i++)
-		__tlb_remove_table(batch->tables[i]);
+    for (i = 0; i < batch->nr; i++)
+        __tlb_remove_table(batch->tables[i]);
 
-	free_page((unsigned long)batch);
+    free_page((unsigned long)batch);
 }
 
-#ifdef CONFIG_MMU_GATHER_RCU_TABLE_FREE
+    #ifdef CONFIG_MMU_GATHER_RCU_TABLE_FREE
 
 /*
  * Semi RCU freeing of the page directories.
@@ -262,140 +272,148 @@ static void __tlb_remove_table_free(struct mmu_table_batch *batch)
 
 static void tlb_remove_table_smp_sync(void *arg)
 {
-	/* Simply deliver the interrupt */
+    /* Simply deliver the interrupt */
 }
 
 void tlb_remove_table_sync_one(void)
 {
-	/*
-	 * This isn't an RCU grace period and hence the page-tables cannot be
-	 * assumed to be actually RCU-freed.
-	 *
-	 * It is however sufficient for software page-table walkers that rely on
-	 * IRQ disabling.
-	 */
-	smp_call_function(tlb_remove_table_smp_sync, NULL, 1);
+    /*
+     * This isn't an RCU grace period and hence the page-tables cannot be
+     * assumed to be actually RCU-freed.
+     *
+     * It is however sufficient for software page-table walkers that rely on
+     * IRQ disabling.
+     */
+    smp_call_function(tlb_remove_table_smp_sync, NULL, 1);
 }
 
 static void tlb_remove_table_rcu(struct rcu_head *head)
 {
-	__tlb_remove_table_free(container_of(head, struct mmu_table_batch, rcu));
+    __tlb_remove_table_free(container_of(head, struct mmu_table_batch, rcu));
 }
 
 static void tlb_remove_table_free(struct mmu_table_batch *batch)
 {
-	call_rcu(&batch->rcu, tlb_remove_table_rcu);
+    call_rcu(&batch->rcu, tlb_remove_table_rcu);
 }
 
-#else /* !CONFIG_MMU_GATHER_RCU_TABLE_FREE */
+    #else /* !CONFIG_MMU_GATHER_RCU_TABLE_FREE */
 
 static void tlb_remove_table_free(struct mmu_table_batch *batch)
 {
-	__tlb_remove_table_free(batch);
+    __tlb_remove_table_free(batch);
 }
 
-#endif /* CONFIG_MMU_GATHER_RCU_TABLE_FREE */
+    #endif /* CONFIG_MMU_GATHER_RCU_TABLE_FREE */
 
 /*
  * If we want tlb_remove_table() to imply TLB invalidates.
  */
 static inline void tlb_table_invalidate(struct mmu_gather *tlb)
 {
-	if (tlb_needs_table_invalidate()) {
-		/*
-		 * Invalidate page-table caches used by hardware walkers. Then
-		 * we still need to RCU-sched wait while freeing the pages
-		 * because software walkers can still be in-flight.
-		 */
-		tlb_flush_mmu_tlbonly(tlb);
-	}
+    if (tlb_needs_table_invalidate())
+    {
+        /*
+         * Invalidate page-table caches used by hardware walkers. Then
+         * we still need to RCU-sched wait while freeing the pages
+         * because software walkers can still be in-flight.
+         */
+        tlb_flush_mmu_tlbonly(tlb);
+    }
 }
 
 static void tlb_remove_table_one(void *table)
 {
-	tlb_remove_table_sync_one();
-	__tlb_remove_table(table);
+    tlb_remove_table_sync_one();
+    __tlb_remove_table(table);
 }
 
 static void tlb_table_flush(struct mmu_gather *tlb)
 {
-	struct mmu_table_batch **batch = &tlb->batch;
+    struct mmu_table_batch **batch = &tlb->batch;
 
-	if (*batch) {
-		tlb_table_invalidate(tlb);
-		tlb_remove_table_free(*batch);
-		*batch = NULL;
-	}
+    if (*batch)
+    {
+        tlb_table_invalidate(tlb);
+        tlb_remove_table_free(*batch);
+        *batch = NULL;
+    }
 }
 
 void tlb_remove_table(struct mmu_gather *tlb, void *table)
 {
-	struct mmu_table_batch **batch = &tlb->batch;
+    struct mmu_table_batch **batch = &tlb->batch;
 
-	if (*batch == NULL) {
-		*batch = (struct mmu_table_batch *)__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
-		if (*batch == NULL) {
-			tlb_table_invalidate(tlb);
-			tlb_remove_table_one(table);
-			return;
-		}
-		(*batch)->nr = 0;
-	}
+    if (*batch == NULL)
+    {
+        *batch = (struct mmu_table_batch *)__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
+        if (*batch == NULL)
+        {
+            tlb_table_invalidate(tlb);
+            tlb_remove_table_one(table);
+            return;
+        }
+        (*batch)->nr = 0;
+    }
 
-	(*batch)->tables[(*batch)->nr++] = table;
-	if ((*batch)->nr == MAX_TABLE_BATCH)
-		tlb_table_flush(tlb);
+    (*batch)->tables[(*batch)->nr++] = table;
+    if ((*batch)->nr == MAX_TABLE_BATCH)
+        tlb_table_flush(tlb);
 }
 
 static inline void tlb_table_init(struct mmu_gather *tlb)
 {
-	tlb->batch = NULL;
+    tlb->batch = NULL;
 }
 
 #else /* !CONFIG_MMU_GATHER_TABLE_FREE */
 
-static inline void tlb_table_flush(struct mmu_gather *tlb) { }
-static inline void tlb_table_init(struct mmu_gather *tlb) { }
+static inline void tlb_table_flush(struct mmu_gather *tlb)
+{
+}
+static inline void tlb_table_init(struct mmu_gather *tlb)
+{
+}
 
 #endif /* CONFIG_MMU_GATHER_TABLE_FREE */
 
 static void tlb_flush_mmu_free(struct mmu_gather *tlb)
 {
-	tlb_table_flush(tlb);
+    tlb_table_flush(tlb);
 #ifndef CONFIG_MMU_GATHER_NO_GATHER
-	tlb_batch_pages_flush(tlb);
+    tlb_batch_pages_flush(tlb);
 #endif
 }
 
 void tlb_flush_mmu(struct mmu_gather *tlb)
 {
-	tlb_flush_mmu_tlbonly(tlb);
-	tlb_flush_mmu_free(tlb);
+    tlb_flush_mmu_tlbonly(tlb);
+    tlb_flush_mmu_free(tlb);
 }
 
 static void __tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
-			     bool fullmm)
+                             bool fullmm)
 {
-	tlb->mm = mm;
-	tlb->fullmm = fullmm;
+    tlb->mm     = mm;
+    tlb->fullmm = fullmm;
 
 #ifndef CONFIG_MMU_GATHER_NO_GATHER
-	tlb->need_flush_all = 0;
-	tlb->local.next = NULL;
-	tlb->local.nr   = 0;
-	tlb->local.max  = ARRAY_SIZE(tlb->__pages);
-	tlb->active     = &tlb->local;
-	tlb->batch_count = 0;
+    tlb->need_flush_all = 0;
+    tlb->local.next     = NULL;
+    tlb->local.nr       = 0;
+    tlb->local.max      = ARRAY_SIZE(tlb->__pages);
+    tlb->active         = &tlb->local;
+    tlb->batch_count    = 0;
 #endif
-	tlb->delayed_rmap = 0;
+    tlb->delayed_rmap = 0;
 
-	tlb_table_init(tlb);
+    tlb_table_init(tlb);
 #ifdef CONFIG_MMU_GATHER_PAGE_SIZE
-	tlb->page_size = 0;
+    tlb->page_size = 0;
 #endif
 
-	__tlb_reset_range(tlb);
-	inc_tlb_flush_pending(tlb->mm);
+    __tlb_reset_range(tlb);
+    inc_tlb_flush_pending(tlb->mm);
 }
 
 /**
@@ -408,7 +426,7 @@ static void __tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
  */
 void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm)
 {
-	__tlb_gather_mmu(tlb, mm, false);
+    __tlb_gather_mmu(tlb, mm, false);
 }
 
 /**
@@ -424,7 +442,7 @@ void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm)
  */
 void tlb_gather_mmu_fullmm(struct mmu_gather *tlb, struct mm_struct *mm)
 {
-	__tlb_gather_mmu(tlb, mm, true);
+    __tlb_gather_mmu(tlb, mm, true);
 }
 
 /**
@@ -436,36 +454,37 @@ void tlb_gather_mmu_fullmm(struct mmu_gather *tlb, struct mm_struct *mm)
  */
 void tlb_finish_mmu(struct mmu_gather *tlb)
 {
-	/*
-	 * If there are parallel threads are doing PTE changes on same range
-	 * under non-exclusive lock (e.g., mmap_lock read-side) but defer TLB
-	 * flush by batching, one thread may end up seeing inconsistent PTEs
-	 * and result in having stale TLB entries.  So flush TLB forcefully
-	 * if we detect parallel PTE batching threads.
-	 *
-	 * However, some syscalls, e.g. munmap(), may free page tables, this
-	 * needs force flush everything in the given range. Otherwise this
-	 * may result in having stale TLB entries for some architectures,
-	 * e.g. aarch64, that could specify flush what level TLB.
-	 */
-	if (mm_tlb_flush_nested(tlb->mm)) {
-		/*
-		 * The aarch64 yields better performance with fullmm by
-		 * avoiding multiple CPUs spamming TLBI messages at the
-		 * same time.
-		 *
-		 * On x86 non-fullmm doesn't yield significant difference
-		 * against fullmm.
-		 */
-		tlb->fullmm = 1;
-		__tlb_reset_range(tlb);
-		tlb->freed_tables = 1;
-	}
+    /*
+     * If there are parallel threads are doing PTE changes on same range
+     * under non-exclusive lock (e.g., mmap_lock read-side) but defer TLB
+     * flush by batching, one thread may end up seeing inconsistent PTEs
+     * and result in having stale TLB entries.  So flush TLB forcefully
+     * if we detect parallel PTE batching threads.
+     *
+     * However, some syscalls, e.g. munmap(), may free page tables, this
+     * needs force flush everything in the given range. Otherwise this
+     * may result in having stale TLB entries for some architectures,
+     * e.g. aarch64, that could specify flush what level TLB.
+     */
+    if (mm_tlb_flush_nested(tlb->mm))
+    {
+        /*
+         * The aarch64 yields better performance with fullmm by
+         * avoiding multiple CPUs spamming TLBI messages at the
+         * same time.
+         *
+         * On x86 non-fullmm doesn't yield significant difference
+         * against fullmm.
+         */
+        tlb->fullmm = 1;
+        __tlb_reset_range(tlb);
+        tlb->freed_tables = 1;
+    }
 
-	tlb_flush_mmu(tlb);
+    tlb_flush_mmu(tlb);
 
 #ifndef CONFIG_MMU_GATHER_NO_GATHER
-	tlb_batch_list_free(tlb);
+    tlb_batch_list_free(tlb);
 #endif
-	dec_tlb_flush_pending(tlb->mm);
+    dec_tlb_flush_pending(tlb->mm);
 }

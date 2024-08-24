@@ -24,8 +24,8 @@ int file_caps_enabled = 1;
 
 static int __init file_caps_disable(char *str)
 {
-	file_caps_enabled = 0;
-	return 1;
+    file_caps_enabled = 0;
+    return 1;
 }
 __setup("no_file_caps", file_caps_disable);
 
@@ -38,10 +38,10 @@ __setup("no_file_caps", file_caps_disable);
 
 static void warn_legacy_capability_use(void)
 {
-	char name[sizeof(current->comm)];
+    char name[sizeof(current->comm)];
 
-	pr_info_once("warning: `%s' uses 32-bit capabilities (legacy support in use)\n",
-		     get_task_comm(name, current));
+    pr_info_once("warning: `%s' uses 32-bit capabilities (legacy support in use)\n",
+                 get_task_comm(name, current));
 }
 
 /*
@@ -62,10 +62,10 @@ static void warn_legacy_capability_use(void)
 
 static void warn_deprecated_v2(void)
 {
-	char name[sizeof(current->comm)];
+    char name[sizeof(current->comm)];
 
-	pr_info_once("warning: `%s' uses deprecated v2 capabilities in a way that may be insecure\n",
-		     get_task_comm(name, current));
+    pr_info_once("warning: `%s' uses deprecated v2 capabilities in a way that may be insecure\n",
+                 get_task_comm(name, current));
 }
 
 /*
@@ -74,29 +74,30 @@ static void warn_deprecated_v2(void)
  */
 static int cap_validate_magic(cap_user_header_t header, unsigned *tocopy)
 {
-	__u32 version;
+    __u32 version;
 
-	if (get_user(version, &header->version))
-		return -EFAULT;
+    if (get_user(version, &header->version))
+        return -EFAULT;
 
-	switch (version) {
-	case _LINUX_CAPABILITY_VERSION_1:
-		warn_legacy_capability_use();
-		*tocopy = _LINUX_CAPABILITY_U32S_1;
-		break;
-	case _LINUX_CAPABILITY_VERSION_2:
-		warn_deprecated_v2();
-		fallthrough;	/* v3 is otherwise equivalent to v2 */
-	case _LINUX_CAPABILITY_VERSION_3:
-		*tocopy = _LINUX_CAPABILITY_U32S_3;
-		break;
-	default:
-		if (put_user((u32)_KERNEL_CAPABILITY_VERSION, &header->version))
-			return -EFAULT;
-		return -EINVAL;
-	}
+    switch (version)
+    {
+        case _LINUX_CAPABILITY_VERSION_1:
+            warn_legacy_capability_use();
+            *tocopy = _LINUX_CAPABILITY_U32S_1;
+            break;
+        case _LINUX_CAPABILITY_VERSION_2:
+            warn_deprecated_v2();
+            fallthrough; /* v3 is otherwise equivalent to v2 */
+        case _LINUX_CAPABILITY_VERSION_3:
+            *tocopy = _LINUX_CAPABILITY_U32S_3;
+            break;
+        default:
+            if (put_user((u32)_KERNEL_CAPABILITY_VERSION, &header->version))
+                return -EFAULT;
+            return -EINVAL;
+    }
 
-	return 0;
+    return 0;
 }
 
 /*
@@ -107,26 +108,28 @@ static int cap_validate_magic(cap_user_header_t header, unsigned *tocopy)
  * locks to when we are reading the caps of another process.
  */
 static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
-				     kernel_cap_t *pIp, kernel_cap_t *pPp)
+                                     kernel_cap_t *pIp, kernel_cap_t *pPp)
 {
-	int ret;
+    int ret;
 
-	if (pid && (pid != task_pid_vnr(current))) {
-		const struct task_struct *target;
+    if (pid && (pid != task_pid_vnr(current)))
+    {
+        const struct task_struct *target;
 
-		rcu_read_lock();
+        rcu_read_lock();
 
-		target = find_task_by_vpid(pid);
-		if (!target)
-			ret = -ESRCH;
-		else
-			ret = security_capget(target, pEp, pIp, pPp);
+        target = find_task_by_vpid(pid);
+        if (!target)
+            ret = -ESRCH;
+        else
+            ret = security_capget(target, pEp, pIp, pPp);
 
-		rcu_read_unlock();
-	} else
-		ret = security_capget(current, pEp, pIp, pPp);
+        rcu_read_unlock();
+    }
+    else
+        ret = security_capget(current, pEp, pIp, pPp);
 
-	return ret;
+    return ret;
 }
 
 /**
@@ -140,63 +143,66 @@ static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
  */
 SYSCALL_DEFINE2(capget, cap_user_header_t, header, cap_user_data_t, dataptr)
 {
-	int ret = 0;
-	pid_t pid;
-	unsigned tocopy;
-	kernel_cap_t pE, pI, pP;
-	struct __user_cap_data_struct kdata[2];
+    int                           ret = 0;
+    pid_t                         pid;
+    unsigned                      tocopy;
+    kernel_cap_t                  pE, pI, pP;
+    struct __user_cap_data_struct kdata[2];
 
-	ret = cap_validate_magic(header, &tocopy);
-	if ((dataptr == NULL) || (ret != 0))
-		return ((dataptr == NULL) && (ret == -EINVAL)) ? 0 : ret;
+    ret = cap_validate_magic(header, &tocopy);
+    if ((dataptr == NULL) || (ret != 0))
+        return ((dataptr == NULL) && (ret == -EINVAL)) ? 0 : ret;
 
-	if (get_user(pid, &header->pid))
-		return -EFAULT;
+    if (get_user(pid, &header->pid))
+        return -EFAULT;
 
-	if (pid < 0)
-		return -EINVAL;
+    if (pid < 0)
+        return -EINVAL;
 
-	ret = cap_get_target_pid(pid, &pE, &pI, &pP);
-	if (ret)
-		return ret;
+    ret = cap_get_target_pid(pid, &pE, &pI, &pP);
+    if (ret)
+        return ret;
 
-	/*
-	 * Annoying legacy format with 64-bit capabilities exposed
-	 * as two sets of 32-bit fields, so we need to split the
-	 * capability values up.
-	 */
-	kdata[0].effective   = pE.val; kdata[1].effective   = pE.val >> 32;
-	kdata[0].permitted   = pP.val; kdata[1].permitted   = pP.val >> 32;
-	kdata[0].inheritable = pI.val; kdata[1].inheritable = pI.val >> 32;
+    /*
+     * Annoying legacy format with 64-bit capabilities exposed
+     * as two sets of 32-bit fields, so we need to split the
+     * capability values up.
+     */
+    kdata[0].effective   = pE.val;
+    kdata[1].effective   = pE.val >> 32;
+    kdata[0].permitted   = pP.val;
+    kdata[1].permitted   = pP.val >> 32;
+    kdata[0].inheritable = pI.val;
+    kdata[1].inheritable = pI.val >> 32;
 
-	/*
-	 * Note, in the case, tocopy < _KERNEL_CAPABILITY_U32S,
-	 * we silently drop the upper capabilities here. This
-	 * has the effect of making older libcap
-	 * implementations implicitly drop upper capability
-	 * bits when they perform a: capget/modify/capset
-	 * sequence.
-	 *
-	 * This behavior is considered fail-safe
-	 * behavior. Upgrading the application to a newer
-	 * version of libcap will enable access to the newer
-	 * capabilities.
-	 *
-	 * An alternative would be to return an error here
-	 * (-ERANGE), but that causes legacy applications to
-	 * unexpectedly fail; the capget/modify/capset aborts
-	 * before modification is attempted and the application
-	 * fails.
-	 */
-	if (copy_to_user(dataptr, kdata, tocopy * sizeof(kdata[0])))
-		return -EFAULT;
+    /*
+     * Note, in the case, tocopy < _KERNEL_CAPABILITY_U32S,
+     * we silently drop the upper capabilities here. This
+     * has the effect of making older libcap
+     * implementations implicitly drop upper capability
+     * bits when they perform a: capget/modify/capset
+     * sequence.
+     *
+     * This behavior is considered fail-safe
+     * behavior. Upgrading the application to a newer
+     * version of libcap will enable access to the newer
+     * capabilities.
+     *
+     * An alternative would be to return an error here
+     * (-ERANGE), but that causes legacy applications to
+     * unexpectedly fail; the capget/modify/capset aborts
+     * before modification is attempted and the application
+     * fails.
+     */
+    if (copy_to_user(dataptr, kdata, tocopy * sizeof(kdata[0])))
+        return -EFAULT;
 
-	return 0;
+    return 0;
 }
 
 static kernel_cap_t mk_kernel_cap(u32 low, u32 high)
 {
-	return (kernel_cap_t) { (low | ((u64)high << 32)) & CAP_VALID_MASK };
+    return (kernel_cap_t){(low | ((u64)high << 32)) & CAP_VALID_MASK};
 }
 
 /**
@@ -219,51 +225,55 @@ static kernel_cap_t mk_kernel_cap(u32 low, u32 high)
  */
 SYSCALL_DEFINE2(capset, cap_user_header_t, header, const cap_user_data_t, data)
 {
-	struct __user_cap_data_struct kdata[2] = { { 0, }, };
-	unsigned tocopy, copybytes;
-	kernel_cap_t inheritable, permitted, effective;
-	struct cred *new;
-	int ret;
-	pid_t pid;
+    struct __user_cap_data_struct kdata[2] = {
+        {
+            0,
+        },
+    };
+    unsigned     tocopy, copybytes;
+    kernel_cap_t inheritable, permitted, effective;
+    struct cred *new;
+    int   ret;
+    pid_t pid;
 
-	ret = cap_validate_magic(header, &tocopy);
-	if (ret != 0)
-		return ret;
+    ret = cap_validate_magic(header, &tocopy);
+    if (ret != 0)
+        return ret;
 
-	if (get_user(pid, &header->pid))
-		return -EFAULT;
+    if (get_user(pid, &header->pid))
+        return -EFAULT;
 
-	/* may only affect current now */
-	if (pid != 0 && pid != task_pid_vnr(current))
-		return -EPERM;
+    /* may only affect current now */
+    if (pid != 0 && pid != task_pid_vnr(current))
+        return -EPERM;
 
-	copybytes = tocopy * sizeof(struct __user_cap_data_struct);
-	if (copybytes > sizeof(kdata))
-		return -EFAULT;
+    copybytes = tocopy * sizeof(struct __user_cap_data_struct);
+    if (copybytes > sizeof(kdata))
+        return -EFAULT;
 
-	if (copy_from_user(&kdata, data, copybytes))
-		return -EFAULT;
+    if (copy_from_user(&kdata, data, copybytes))
+        return -EFAULT;
 
-	effective   = mk_kernel_cap(kdata[0].effective,   kdata[1].effective);
-	permitted   = mk_kernel_cap(kdata[0].permitted,   kdata[1].permitted);
-	inheritable = mk_kernel_cap(kdata[0].inheritable, kdata[1].inheritable);
+    effective   = mk_kernel_cap(kdata[0].effective, kdata[1].effective);
+    permitted   = mk_kernel_cap(kdata[0].permitted, kdata[1].permitted);
+    inheritable = mk_kernel_cap(kdata[0].inheritable, kdata[1].inheritable);
 
-	new = prepare_creds();
-	if (!new)
-		return -ENOMEM;
+    new = prepare_creds();
+    if (!new)
+        return -ENOMEM;
 
-	ret = security_capset(new, current_cred(),
-			      &effective, &inheritable, &permitted);
-	if (ret < 0)
-		goto error;
+    ret = security_capset(new, current_cred(),
+                          &effective, &inheritable, &permitted);
+    if (ret < 0)
+        goto error;
 
-	audit_log_capset(new, current_cred());
+    audit_log_capset(new, current_cred());
 
-	return commit_creds(new);
+    return commit_creds(new);
 
 error:
-	abort_creds(new);
-	return ret;
+    abort_creds(new);
+    return ret;
 }
 
 /**
@@ -277,16 +287,16 @@ error:
  *
  * Note that this does not set PF_SUPERPRIV on the task.
  */
-bool has_ns_capability(struct task_struct *t,
-		       struct user_namespace *ns, int cap)
+bool has_ns_capability(struct task_struct    *t,
+                       struct user_namespace *ns, int cap)
 {
-	int ret;
+    int ret;
 
-	rcu_read_lock();
-	ret = security_capable(__task_cred(t), ns, cap, CAP_OPT_NONE);
-	rcu_read_unlock();
+    rcu_read_lock();
+    ret = security_capable(__task_cred(t), ns, cap, CAP_OPT_NONE);
+    rcu_read_unlock();
 
-	return (ret == 0);
+    return (ret == 0);
 }
 
 /**
@@ -301,7 +311,7 @@ bool has_ns_capability(struct task_struct *t,
  */
 bool has_capability(struct task_struct *t, int cap)
 {
-	return has_ns_capability(t, &init_user_ns, cap);
+    return has_ns_capability(t, &init_user_ns, cap);
 }
 EXPORT_SYMBOL(has_capability);
 
@@ -318,16 +328,16 @@ EXPORT_SYMBOL(has_capability);
  *
  * Note that this does not set PF_SUPERPRIV on the task.
  */
-bool has_ns_capability_noaudit(struct task_struct *t,
-			       struct user_namespace *ns, int cap)
+bool has_ns_capability_noaudit(struct task_struct    *t,
+                               struct user_namespace *ns, int cap)
 {
-	int ret;
+    int ret;
 
-	rcu_read_lock();
-	ret = security_capable(__task_cred(t), ns, cap, CAP_OPT_NOAUDIT);
-	rcu_read_unlock();
+    rcu_read_lock();
+    ret = security_capable(__task_cred(t), ns, cap, CAP_OPT_NOAUDIT);
+    rcu_read_unlock();
 
-	return (ret == 0);
+    return (ret == 0);
 }
 
 /**
@@ -344,27 +354,29 @@ bool has_ns_capability_noaudit(struct task_struct *t,
  */
 bool has_capability_noaudit(struct task_struct *t, int cap)
 {
-	return has_ns_capability_noaudit(t, &init_user_ns, cap);
+    return has_ns_capability_noaudit(t, &init_user_ns, cap);
 }
 EXPORT_SYMBOL(has_capability_noaudit);
 
 static bool ns_capable_common(struct user_namespace *ns,
-			      int cap,
-			      unsigned int opts)
+                              int                    cap,
+                              unsigned int           opts)
 {
-	int capable;
+    int capable;
 
-	if (unlikely(!cap_valid(cap))) {
-		pr_crit("capable() called with invalid cap=%u\n", cap);
-		BUG();
-	}
+    if (unlikely(!cap_valid(cap)))
+    {
+        pr_crit("capable() called with invalid cap=%u\n", cap);
+        BUG();
+    }
 
-	capable = security_capable(current_cred(), ns, cap, opts);
-	if (capable == 0) {
-		current->flags |= PF_SUPERPRIV;
-		return true;
-	}
-	return false;
+    capable = security_capable(current_cred(), ns, cap, opts);
+    if (capable == 0)
+    {
+        current->flags |= PF_SUPERPRIV;
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -380,7 +392,7 @@ static bool ns_capable_common(struct user_namespace *ns,
  */
 bool ns_capable(struct user_namespace *ns, int cap)
 {
-	return ns_capable_common(ns, cap, CAP_OPT_NONE);
+    return ns_capable_common(ns, cap, CAP_OPT_NONE);
 }
 EXPORT_SYMBOL(ns_capable);
 
@@ -398,7 +410,7 @@ EXPORT_SYMBOL(ns_capable);
  */
 bool ns_capable_noaudit(struct user_namespace *ns, int cap)
 {
-	return ns_capable_common(ns, cap, CAP_OPT_NOAUDIT);
+    return ns_capable_common(ns, cap, CAP_OPT_NOAUDIT);
 }
 EXPORT_SYMBOL(ns_capable_noaudit);
 
@@ -417,7 +429,7 @@ EXPORT_SYMBOL(ns_capable_noaudit);
  */
 bool ns_capable_setid(struct user_namespace *ns, int cap)
 {
-	return ns_capable_common(ns, cap, CAP_OPT_INSETID);
+    return ns_capable_common(ns, cap, CAP_OPT_INSETID);
 }
 EXPORT_SYMBOL(ns_capable_setid);
 
@@ -433,7 +445,7 @@ EXPORT_SYMBOL(ns_capable_setid);
  */
 bool capable(int cap)
 {
-	return ns_capable(&init_user_ns, cap);
+    return ns_capable(&init_user_ns, cap);
 }
 EXPORT_SYMBOL(capable);
 #endif /* CONFIG_MULTIUSER */
@@ -451,16 +463,16 @@ EXPORT_SYMBOL(capable);
  * actually be privileged.
  */
 bool file_ns_capable(const struct file *file, struct user_namespace *ns,
-		     int cap)
+                     int cap)
 {
 
-	if (WARN_ON_ONCE(!cap_valid(cap)))
-		return false;
+    if (WARN_ON_ONCE(!cap_valid(cap)))
+        return false;
 
-	if (security_capable(file->f_cred, ns, cap, CAP_OPT_NONE) == 0)
-		return true;
+    if (security_capable(file->f_cred, ns, cap, CAP_OPT_NONE) == 0)
+        return true;
 
-	return false;
+    return false;
 }
 EXPORT_SYMBOL(file_ns_capable);
 
@@ -473,11 +485,10 @@ EXPORT_SYMBOL(file_ns_capable);
  * Return true if the inode uid and gid are within the namespace.
  */
 bool privileged_wrt_inode_uidgid(struct user_namespace *ns,
-				 struct mnt_idmap *idmap,
-				 const struct inode *inode)
+                                 struct mnt_idmap      *idmap,
+                                 const struct inode    *inode)
 {
-	return vfsuid_has_mapping(ns, i_uid_into_vfsuid(idmap, inode)) &&
-	       vfsgid_has_mapping(ns, i_gid_into_vfsgid(idmap, inode));
+    return vfsuid_has_mapping(ns, i_uid_into_vfsuid(idmap, inode)) && vfsgid_has_mapping(ns, i_gid_into_vfsgid(idmap, inode));
 }
 
 /**
@@ -490,13 +501,12 @@ bool privileged_wrt_inode_uidgid(struct user_namespace *ns,
  * its own user namespace and that the given inode's uid and gid are
  * mapped into the current user namespace.
  */
-bool capable_wrt_inode_uidgid(struct mnt_idmap *idmap,
-			      const struct inode *inode, int cap)
+bool capable_wrt_inode_uidgid(struct mnt_idmap   *idmap,
+                              const struct inode *inode, int cap)
 {
-	struct user_namespace *ns = current_user_ns();
+    struct user_namespace *ns = current_user_ns();
 
-	return ns_capable(ns, cap) &&
-	       privileged_wrt_inode_uidgid(ns, idmap, inode);
+    return ns_capable(ns, cap) && privileged_wrt_inode_uidgid(ns, idmap, inode);
 }
 EXPORT_SYMBOL(capable_wrt_inode_uidgid);
 
@@ -510,14 +520,14 @@ EXPORT_SYMBOL(capable_wrt_inode_uidgid);
  */
 bool ptracer_capable(struct task_struct *tsk, struct user_namespace *ns)
 {
-	int ret = 0;  /* An absent tracer adds no restrictions */
-	const struct cred *cred;
+    int                ret = 0; /* An absent tracer adds no restrictions */
+    const struct cred *cred;
 
-	rcu_read_lock();
-	cred = rcu_dereference(tsk->ptracer_cred);
-	if (cred)
-		ret = security_capable(cred, ns, CAP_SYS_PTRACE,
-				       CAP_OPT_NOAUDIT);
-	rcu_read_unlock();
-	return (ret == 0);
+    rcu_read_lock();
+    cred = rcu_dereference(tsk->ptracer_cred);
+    if (cred)
+        ret = security_capable(cred, ns, CAP_SYS_PTRACE,
+                               CAP_OPT_NOAUDIT);
+    rcu_read_unlock();
+    return (ret == 0);
 }

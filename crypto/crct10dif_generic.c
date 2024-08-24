@@ -30,8 +30,9 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 
-struct chksum_desc_ctx {
-	__u16 crc;
+struct chksum_desc_ctx
+{
+    __u16 crc;
 };
 
 /*
@@ -41,75 +42,74 @@ struct chksum_desc_ctx {
 
 static int chksum_init(struct shash_desc *desc)
 {
-	struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
+    struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	ctx->crc = 0;
+    ctx->crc = 0;
 
-	return 0;
+    return 0;
 }
 
 static int chksum_update(struct shash_desc *desc, const u8 *data,
-			 unsigned int length)
+                         unsigned int length)
 {
-	struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
+    struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	ctx->crc = crc_t10dif_generic(ctx->crc, data, length);
-	return 0;
+    ctx->crc = crc_t10dif_generic(ctx->crc, data, length);
+    return 0;
 }
 
 static int chksum_final(struct shash_desc *desc, u8 *out)
 {
-	struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
+    struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	*(__u16 *)out = ctx->crc;
-	return 0;
+    *(__u16 *)out = ctx->crc;
+    return 0;
 }
 
 static int __chksum_finup(__u16 crc, const u8 *data, unsigned int len, u8 *out)
 {
-	*(__u16 *)out = crc_t10dif_generic(crc, data, len);
-	return 0;
+    *(__u16 *)out = crc_t10dif_generic(crc, data, len);
+    return 0;
 }
 
 static int chksum_finup(struct shash_desc *desc, const u8 *data,
-			unsigned int len, u8 *out)
+                        unsigned int len, u8 *out)
 {
-	struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
+    struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	return __chksum_finup(ctx->crc, data, len, out);
+    return __chksum_finup(ctx->crc, data, len, out);
 }
 
 static int chksum_digest(struct shash_desc *desc, const u8 *data,
-			 unsigned int length, u8 *out)
+                         unsigned int length, u8 *out)
 {
-	return __chksum_finup(0, data, length, out);
+    return __chksum_finup(0, data, length, out);
 }
 
 static struct shash_alg alg = {
-	.digestsize		=	CRC_T10DIF_DIGEST_SIZE,
-	.init		=	chksum_init,
-	.update		=	chksum_update,
-	.final		=	chksum_final,
-	.finup		=	chksum_finup,
-	.digest		=	chksum_digest,
-	.descsize		=	sizeof(struct chksum_desc_ctx),
-	.base			=	{
-		.cra_name		=	"crct10dif",
-		.cra_driver_name	=	"crct10dif-generic",
-		.cra_priority		=	100,
-		.cra_blocksize		=	CRC_T10DIF_BLOCK_SIZE,
-		.cra_module		=	THIS_MODULE,
-	}
-};
+    .digestsize = CRC_T10DIF_DIGEST_SIZE,
+    .init       = chksum_init,
+    .update     = chksum_update,
+    .final      = chksum_final,
+    .finup      = chksum_finup,
+    .digest     = chksum_digest,
+    .descsize   = sizeof(struct chksum_desc_ctx),
+    .base       = {
+              .cra_name        = "crct10dif",
+              .cra_driver_name = "crct10dif-generic",
+              .cra_priority    = 100,
+              .cra_blocksize   = CRC_T10DIF_BLOCK_SIZE,
+              .cra_module      = THIS_MODULE,
+    }};
 
 static int __init crct10dif_mod_init(void)
 {
-	return crypto_register_shash(&alg);
+    return crypto_register_shash(&alg);
 }
 
 static void __exit crct10dif_mod_fini(void)
 {
-	crypto_unregister_shash(&alg);
+    crypto_unregister_shash(&alg);
 }
 
 subsys_initcall(crct10dif_mod_init);

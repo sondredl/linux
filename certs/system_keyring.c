@@ -28,7 +28,7 @@ static struct key *machine_trusted_keys;
 static struct key *platform_trusted_keys;
 #endif
 
-extern __initconst const u8 system_certificate_list[];
+extern __initconst const u8            system_certificate_list[];
 extern __initconst const unsigned long system_certificate_list_size;
 extern __initconst const unsigned long module_cert_size;
 
@@ -42,13 +42,13 @@ extern __initconst const unsigned long module_cert_size;
  * Restrict the addition of keys into a keyring based on the key-to-be-added
  * being vouched for by a key in the built in system keyring.
  */
-int restrict_link_by_builtin_trusted(struct key *dest_keyring,
-				     const struct key_type *type,
-				     const union key_payload *payload,
-				     struct key *restriction_key)
+int restrict_link_by_builtin_trusted(struct key              *dest_keyring,
+                                     const struct key_type   *type,
+                                     const union key_payload *payload,
+                                     struct key              *restriction_key)
 {
-	return restrict_link_by_signature(dest_keyring, type, payload,
-					  builtin_trusted_keys);
+    return restrict_link_by_signature(dest_keyring, type, payload,
+                                      builtin_trusted_keys);
 }
 
 /**
@@ -62,13 +62,13 @@ int restrict_link_by_builtin_trusted(struct key *dest_keyring,
  * being vouched for by a key in the built in system keyring. The new key
  * must have the digitalSignature usage field set.
  */
-int restrict_link_by_digsig_builtin(struct key *dest_keyring,
-				    const struct key_type *type,
-				    const union key_payload *payload,
-				    struct key *restriction_key)
+int restrict_link_by_digsig_builtin(struct key              *dest_keyring,
+                                    const struct key_type   *type,
+                                    const union key_payload *payload,
+                                    struct key              *restriction_key)
 {
-	return restrict_link_by_digsig(dest_keyring, type, payload,
-				       builtin_trusted_keys);
+    return restrict_link_by_digsig(dest_keyring, type, payload,
+                                   builtin_trusted_keys);
 }
 
 #ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
@@ -85,22 +85,20 @@ int restrict_link_by_digsig_builtin(struct key *dest_keyring,
  * keyrings.
  */
 int restrict_link_by_builtin_and_secondary_trusted(
-	struct key *dest_keyring,
-	const struct key_type *type,
-	const union key_payload *payload,
-	struct key *restrict_key)
+    struct key              *dest_keyring,
+    const struct key_type   *type,
+    const union key_payload *payload,
+    struct key              *restrict_key)
 {
-	/* If we have a secondary trusted keyring, then that contains a link
-	 * through to the builtin keyring and the search will follow that link.
-	 */
-	if (type == &key_type_keyring &&
-	    dest_keyring == secondary_trusted_keys &&
-	    payload == &builtin_trusted_keys->payload)
-		/* Allow the builtin keyring to be added to the secondary */
-		return 0;
+    /* If we have a secondary trusted keyring, then that contains a link
+     * through to the builtin keyring and the search will follow that link.
+     */
+    if (type == &key_type_keyring && dest_keyring == secondary_trusted_keys && payload == &builtin_trusted_keys->payload)
+        /* Allow the builtin keyring to be added to the secondary */
+        return 0;
 
-	return restrict_link_by_signature(dest_keyring, type, payload,
-					  secondary_trusted_keys);
+    return restrict_link_by_signature(dest_keyring, type, payload,
+                                      secondary_trusted_keys);
 }
 
 /**
@@ -114,22 +112,20 @@ int restrict_link_by_builtin_and_secondary_trusted(
  * being vouched for by a key in either the built-in or the secondary system
  * keyrings. The new key must have the digitalSignature usage field set.
  */
-int restrict_link_by_digsig_builtin_and_secondary(struct key *dest_keyring,
-						  const struct key_type *type,
-						  const union key_payload *payload,
-						  struct key *restrict_key)
+int restrict_link_by_digsig_builtin_and_secondary(struct key              *dest_keyring,
+                                                  const struct key_type   *type,
+                                                  const union key_payload *payload,
+                                                  struct key              *restrict_key)
 {
-	/* If we have a secondary trusted keyring, then that contains a link
-	 * through to the builtin keyring and the search will follow that link.
-	 */
-	if (type == &key_type_keyring &&
-	    dest_keyring == secondary_trusted_keys &&
-	    payload == &builtin_trusted_keys->payload)
-		/* Allow the builtin keyring to be added to the secondary */
-		return 0;
+    /* If we have a secondary trusted keyring, then that contains a link
+     * through to the builtin keyring and the search will follow that link.
+     */
+    if (type == &key_type_keyring && dest_keyring == secondary_trusted_keys && payload == &builtin_trusted_keys->payload)
+        /* Allow the builtin keyring to be added to the secondary */
+        return 0;
 
-	return restrict_link_by_digsig(dest_keyring, type, payload,
-				       secondary_trusted_keys);
+    return restrict_link_by_digsig(dest_keyring, type, payload,
+                                   secondary_trusted_keys);
 }
 
 /*
@@ -138,19 +134,19 @@ int restrict_link_by_digsig_builtin_and_secondary(struct key *dest_keyring,
  */
 static __init struct key_restriction *get_builtin_and_secondary_restriction(void)
 {
-	struct key_restriction *restriction;
+    struct key_restriction *restriction;
 
-	restriction = kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
+    restriction = kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
 
-	if (!restriction)
-		panic("Can't allocate secondary trusted keyring restriction\n");
+    if (!restriction)
+        panic("Can't allocate secondary trusted keyring restriction\n");
 
-	if (IS_ENABLED(CONFIG_INTEGRITY_MACHINE_KEYRING))
-		restriction->check = restrict_link_by_builtin_secondary_and_machine;
-	else
-		restriction->check = restrict_link_by_builtin_and_secondary_trusted;
+    if (IS_ENABLED(CONFIG_INTEGRITY_MACHINE_KEYRING))
+        restriction->check = restrict_link_by_builtin_secondary_and_machine;
+    else
+        restriction->check = restrict_link_by_builtin_and_secondary_trusted;
 
-	return restriction;
+    return restriction;
 }
 
 /**
@@ -164,32 +160,33 @@ static __init struct key_restriction *get_builtin_and_secondary_restriction(void
  */
 void __init add_to_secondary_keyring(const char *source, const void *data, size_t len)
 {
-	key_ref_t key;
-	key_perm_t perm;
+    key_ref_t  key;
+    key_perm_t perm;
 
-	perm = (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW;
+    perm = (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW;
 
-	key = key_create_or_update(make_key_ref(secondary_trusted_keys, 1),
-				   "asymmetric",
-				   NULL, data, len, perm,
-				   KEY_ALLOC_NOT_IN_QUOTA);
-	if (IS_ERR(key)) {
-		pr_err("Problem loading X.509 certificate from %s to secondary keyring %ld\n",
-		       source, PTR_ERR(key));
-		return;
-	}
+    key = key_create_or_update(make_key_ref(secondary_trusted_keys, 1),
+                               "asymmetric",
+                               NULL, data, len, perm,
+                               KEY_ALLOC_NOT_IN_QUOTA);
+    if (IS_ERR(key))
+    {
+        pr_err("Problem loading X.509 certificate from %s to secondary keyring %ld\n",
+               source, PTR_ERR(key));
+        return;
+    }
 
-	pr_notice("Loaded X.509 cert '%s'\n", key_ref_to_ptr(key)->description);
-	key_ref_put(key);
+    pr_notice("Loaded X.509 cert '%s'\n", key_ref_to_ptr(key)->description);
+    key_ref_put(key);
 }
 #endif
 #ifdef CONFIG_INTEGRITY_MACHINE_KEYRING
 void __init set_machine_trusted_keys(struct key *keyring)
 {
-	machine_trusted_keys = keyring;
+    machine_trusted_keys = keyring;
 
-	if (key_link(secondary_trusted_keys, machine_trusted_keys) < 0)
-		panic("Can't link (machine) trusted keyrings\n");
+    if (key_link(secondary_trusted_keys, machine_trusted_keys) < 0)
+        panic("Can't link (machine) trusted keyrings\n");
 }
 
 /**
@@ -204,19 +201,17 @@ void __init set_machine_trusted_keys(struct key *keyring)
  * the machine keyrings.
  */
 int restrict_link_by_builtin_secondary_and_machine(
-	struct key *dest_keyring,
-	const struct key_type *type,
-	const union key_payload *payload,
-	struct key *restrict_key)
+    struct key              *dest_keyring,
+    const struct key_type   *type,
+    const union key_payload *payload,
+    struct key              *restrict_key)
 {
-	if (machine_trusted_keys && type == &key_type_keyring &&
-	    dest_keyring == secondary_trusted_keys &&
-	    payload == &machine_trusted_keys->payload)
-		/* Allow the machine keyring to be added to the secondary */
-		return 0;
+    if (machine_trusted_keys && type == &key_type_keyring && dest_keyring == secondary_trusted_keys && payload == &machine_trusted_keys->payload)
+        /* Allow the machine keyring to be added to the secondary */
+        return 0;
 
-	return restrict_link_by_builtin_and_secondary_trusted(dest_keyring, type,
-							      payload, restrict_key);
+    return restrict_link_by_builtin_and_secondary_trusted(dest_keyring, type,
+                                                          payload, restrict_key);
 }
 #endif
 
@@ -225,36 +220,33 @@ int restrict_link_by_builtin_secondary_and_machine(
  */
 static __init int system_trusted_keyring_init(void)
 {
-	pr_notice("Initialise system trusted keyrings\n");
+    pr_notice("Initialise system trusted keyrings\n");
 
-	builtin_trusted_keys =
-		keyring_alloc(".builtin_trusted_keys",
-			      GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, current_cred(),
-			      ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
-			      KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH),
-			      KEY_ALLOC_NOT_IN_QUOTA,
-			      NULL, NULL);
-	if (IS_ERR(builtin_trusted_keys))
-		panic("Can't allocate builtin trusted keyring\n");
+    builtin_trusted_keys =
+        keyring_alloc(".builtin_trusted_keys",
+                      GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, current_cred(),
+                      ((KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH),
+                      KEY_ALLOC_NOT_IN_QUOTA,
+                      NULL, NULL);
+    if (IS_ERR(builtin_trusted_keys))
+        panic("Can't allocate builtin trusted keyring\n");
 
 #ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
-	secondary_trusted_keys =
-		keyring_alloc(".secondary_trusted_keys",
-			      GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, current_cred(),
-			      ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
-			       KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH |
-			       KEY_USR_WRITE),
-			      KEY_ALLOC_NOT_IN_QUOTA,
-			      get_builtin_and_secondary_restriction(),
-			      NULL);
-	if (IS_ERR(secondary_trusted_keys))
-		panic("Can't allocate secondary trusted keyring\n");
+    secondary_trusted_keys =
+        keyring_alloc(".secondary_trusted_keys",
+                      GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, current_cred(),
+                      ((KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH | KEY_USR_WRITE),
+                      KEY_ALLOC_NOT_IN_QUOTA,
+                      get_builtin_and_secondary_restriction(),
+                      NULL);
+    if (IS_ERR(secondary_trusted_keys))
+        panic("Can't allocate secondary trusted keyring\n");
 
-	if (key_link(secondary_trusted_keys, builtin_trusted_keys) < 0)
-		panic("Can't link trusted keyrings\n");
+    if (key_link(secondary_trusted_keys, builtin_trusted_keys) < 0)
+        panic("Can't link trusted keyrings\n");
 #endif
 
-	return 0;
+    return 0;
 }
 
 /*
@@ -264,13 +256,13 @@ device_initcall(system_trusted_keyring_init);
 
 __init int load_module_cert(struct key *keyring)
 {
-	if (!IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG))
-		return 0;
+    if (!IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG))
+        return 0;
 
-	pr_notice("Loading compiled-in module X.509 certificates\n");
+    pr_notice("Loading compiled-in module X.509 certificates\n");
 
-	return x509_load_certificate_list(system_certificate_list,
-					  module_cert_size, keyring);
+    return x509_load_certificate_list(system_certificate_list,
+                                      module_cert_size, keyring);
 }
 
 /*
@@ -278,20 +270,20 @@ __init int load_module_cert(struct key *keyring)
  */
 static __init int load_system_certificate_list(void)
 {
-	const u8 *p;
-	unsigned long size;
+    const u8     *p;
+    unsigned long size;
 
-	pr_notice("Loading compiled-in X.509 certificates\n");
+    pr_notice("Loading compiled-in X.509 certificates\n");
 
 #ifdef CONFIG_MODULE_SIG
-	p = system_certificate_list;
-	size = system_certificate_list_size;
+    p    = system_certificate_list;
+    size = system_certificate_list_size;
 #else
-	p = system_certificate_list + module_cert_size;
-	size = system_certificate_list_size - module_cert_size;
+    p    = system_certificate_list + module_cert_size;
+    size = system_certificate_list_size - module_cert_size;
 #endif
 
-	return x509_load_certificate_list(p, size, builtin_trusted_keys);
+    return x509_load_certificate_list(p, size, builtin_trusted_keys);
 }
 late_initcall(load_system_certificate_list);
 
@@ -309,76 +301,87 @@ late_initcall(load_system_certificate_list);
  * @ctx: Context for callback.
  */
 int verify_pkcs7_message_sig(const void *data, size_t len,
-			     struct pkcs7_message *pkcs7,
-			     struct key *trusted_keys,
-			     enum key_being_used_for usage,
-			     int (*view_content)(void *ctx,
-						 const void *data, size_t len,
-						 size_t asn1hdrlen),
-			     void *ctx)
+                             struct pkcs7_message   *pkcs7,
+                             struct key             *trusted_keys,
+                             enum key_being_used_for usage,
+                             int (*view_content)(void       *ctx,
+                                                 const void *data, size_t len,
+                                                 size_t asn1hdrlen),
+                             void *ctx)
 {
-	int ret;
+    int ret;
 
-	/* The data should be detached - so we need to supply it. */
-	if (data && pkcs7_supply_detached_data(pkcs7, data, len) < 0) {
-		pr_err("PKCS#7 signature with non-detached data\n");
-		ret = -EBADMSG;
-		goto error;
-	}
+    /* The data should be detached - so we need to supply it. */
+    if (data && pkcs7_supply_detached_data(pkcs7, data, len) < 0)
+    {
+        pr_err("PKCS#7 signature with non-detached data\n");
+        ret = -EBADMSG;
+        goto error;
+    }
 
-	ret = pkcs7_verify(pkcs7, usage);
-	if (ret < 0)
-		goto error;
+    ret = pkcs7_verify(pkcs7, usage);
+    if (ret < 0)
+        goto error;
 
-	ret = is_key_on_revocation_list(pkcs7);
-	if (ret != -ENOKEY) {
-		pr_devel("PKCS#7 key is on revocation list\n");
-		goto error;
-	}
+    ret = is_key_on_revocation_list(pkcs7);
+    if (ret != -ENOKEY)
+    {
+        pr_devel("PKCS#7 key is on revocation list\n");
+        goto error;
+    }
 
-	if (!trusted_keys) {
-		trusted_keys = builtin_trusted_keys;
-	} else if (trusted_keys == VERIFY_USE_SECONDARY_KEYRING) {
-#ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
-		trusted_keys = secondary_trusted_keys;
-#else
-		trusted_keys = builtin_trusted_keys;
-#endif
-	} else if (trusted_keys == VERIFY_USE_PLATFORM_KEYRING) {
-#ifdef CONFIG_INTEGRITY_PLATFORM_KEYRING
-		trusted_keys = platform_trusted_keys;
-#else
-		trusted_keys = NULL;
-#endif
-		if (!trusted_keys) {
-			ret = -ENOKEY;
-			pr_devel("PKCS#7 platform keyring is not available\n");
-			goto error;
-		}
-	}
-	ret = pkcs7_validate_trust(pkcs7, trusted_keys);
-	if (ret < 0) {
-		if (ret == -ENOKEY)
-			pr_devel("PKCS#7 signature not signed with a trusted key\n");
-		goto error;
-	}
+    if (!trusted_keys)
+    {
+        trusted_keys = builtin_trusted_keys;
+    }
+    else if (trusted_keys == VERIFY_USE_SECONDARY_KEYRING)
+    {
+    #ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
+        trusted_keys = secondary_trusted_keys;
+    #else
+        trusted_keys = builtin_trusted_keys;
+    #endif
+    }
+    else if (trusted_keys == VERIFY_USE_PLATFORM_KEYRING)
+    {
+    #ifdef CONFIG_INTEGRITY_PLATFORM_KEYRING
+        trusted_keys = platform_trusted_keys;
+    #else
+        trusted_keys = NULL;
+    #endif
+        if (!trusted_keys)
+        {
+            ret = -ENOKEY;
+            pr_devel("PKCS#7 platform keyring is not available\n");
+            goto error;
+        }
+    }
+    ret = pkcs7_validate_trust(pkcs7, trusted_keys);
+    if (ret < 0)
+    {
+        if (ret == -ENOKEY)
+            pr_devel("PKCS#7 signature not signed with a trusted key\n");
+        goto error;
+    }
 
-	if (view_content) {
-		size_t asn1hdrlen;
+    if (view_content)
+    {
+        size_t asn1hdrlen;
 
-		ret = pkcs7_get_content_data(pkcs7, &data, &len, &asn1hdrlen);
-		if (ret < 0) {
-			if (ret == -ENODATA)
-				pr_devel("PKCS#7 message does not contain data\n");
-			goto error;
-		}
+        ret = pkcs7_get_content_data(pkcs7, &data, &len, &asn1hdrlen);
+        if (ret < 0)
+        {
+            if (ret == -ENODATA)
+                pr_devel("PKCS#7 message does not contain data\n");
+            goto error;
+        }
 
-		ret = view_content(ctx, data, len, asn1hdrlen);
-	}
+        ret = view_content(ctx, data, len, asn1hdrlen);
+    }
 
 error:
-	pr_devel("<==%s() = %d\n", __func__, ret);
-	return ret;
+    pr_devel("<==%s() = %d\n", __func__, ret);
+    return ret;
 }
 
 /**
@@ -394,27 +397,27 @@ error:
  * @ctx: Context for callback.
  */
 int verify_pkcs7_signature(const void *data, size_t len,
-			   const void *raw_pkcs7, size_t pkcs7_len,
-			   struct key *trusted_keys,
-			   enum key_being_used_for usage,
-			   int (*view_content)(void *ctx,
-					       const void *data, size_t len,
-					       size_t asn1hdrlen),
-			   void *ctx)
+                           const void *raw_pkcs7, size_t pkcs7_len,
+                           struct key             *trusted_keys,
+                           enum key_being_used_for usage,
+                           int (*view_content)(void       *ctx,
+                                               const void *data, size_t len,
+                                               size_t asn1hdrlen),
+                           void *ctx)
 {
-	struct pkcs7_message *pkcs7;
-	int ret;
+    struct pkcs7_message *pkcs7;
+    int                   ret;
 
-	pkcs7 = pkcs7_parse_message(raw_pkcs7, pkcs7_len);
-	if (IS_ERR(pkcs7))
-		return PTR_ERR(pkcs7);
+    pkcs7 = pkcs7_parse_message(raw_pkcs7, pkcs7_len);
+    if (IS_ERR(pkcs7))
+        return PTR_ERR(pkcs7);
 
-	ret = verify_pkcs7_message_sig(data, len, pkcs7, trusted_keys, usage,
-				       view_content, ctx);
+    ret = verify_pkcs7_message_sig(data, len, pkcs7, trusted_keys, usage,
+                                   view_content, ctx);
 
-	pkcs7_free_message(pkcs7);
-	pr_devel("<==%s() = %d\n", __func__, ret);
-	return ret;
+    pkcs7_free_message(pkcs7);
+    pr_devel("<==%s() = %d\n", __func__, ret);
+    return ret;
 }
 EXPORT_SYMBOL_GPL(verify_pkcs7_signature);
 
@@ -423,6 +426,6 @@ EXPORT_SYMBOL_GPL(verify_pkcs7_signature);
 #ifdef CONFIG_INTEGRITY_PLATFORM_KEYRING
 void __init set_platform_trusted_keys(struct key *keyring)
 {
-	platform_trusted_keys = keyring;
+    platform_trusted_keys = keyring;
 }
 #endif

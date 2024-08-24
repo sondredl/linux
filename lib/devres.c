@@ -9,56 +9,60 @@
 #include <linux/of_address.h>
 #include <linux/types.h>
 
-enum devm_ioremap_type {
-	DEVM_IOREMAP = 0,
-	DEVM_IOREMAP_UC,
-	DEVM_IOREMAP_WC,
-	DEVM_IOREMAP_NP,
+enum devm_ioremap_type
+{
+    DEVM_IOREMAP = 0,
+    DEVM_IOREMAP_UC,
+    DEVM_IOREMAP_WC,
+    DEVM_IOREMAP_NP,
 };
 
 void devm_ioremap_release(struct device *dev, void *res)
 {
-	iounmap(*(void __iomem **)res);
+    iounmap(*(void __iomem **)res);
 }
 
 static int devm_ioremap_match(struct device *dev, void *res, void *match_data)
 {
-	return *(void **)res == match_data;
+    return *(void **)res == match_data;
 }
 
 static void __iomem *__devm_ioremap(struct device *dev, resource_size_t offset,
-				    resource_size_t size,
-				    enum devm_ioremap_type type)
+                                    resource_size_t        size,
+                                    enum devm_ioremap_type type)
 {
-	void __iomem **ptr, *addr = NULL;
+    void __iomem **ptr, *addr = NULL;
 
-	ptr = devres_alloc_node(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL,
-				dev_to_node(dev));
-	if (!ptr)
-		return NULL;
+    ptr = devres_alloc_node(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL,
+                            dev_to_node(dev));
+    if (!ptr)
+        return NULL;
 
-	switch (type) {
-	case DEVM_IOREMAP:
-		addr = ioremap(offset, size);
-		break;
-	case DEVM_IOREMAP_UC:
-		addr = ioremap_uc(offset, size);
-		break;
-	case DEVM_IOREMAP_WC:
-		addr = ioremap_wc(offset, size);
-		break;
-	case DEVM_IOREMAP_NP:
-		addr = ioremap_np(offset, size);
-		break;
-	}
+    switch (type)
+    {
+        case DEVM_IOREMAP:
+            addr = ioremap(offset, size);
+            break;
+        case DEVM_IOREMAP_UC:
+            addr = ioremap_uc(offset, size);
+            break;
+        case DEVM_IOREMAP_WC:
+            addr = ioremap_wc(offset, size);
+            break;
+        case DEVM_IOREMAP_NP:
+            addr = ioremap_np(offset, size);
+            break;
+    }
 
-	if (addr) {
-		*ptr = addr;
-		devres_add(dev, ptr);
-	} else
-		devres_free(ptr);
+    if (addr)
+    {
+        *ptr = addr;
+        devres_add(dev, ptr);
+    }
+    else
+        devres_free(ptr);
 
-	return addr;
+    return addr;
 }
 
 /**
@@ -70,9 +74,9 @@ static void __iomem *__devm_ioremap(struct device *dev, resource_size_t offset,
  * Managed ioremap().  Map is automatically unmapped on driver detach.
  */
 void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
-			   resource_size_t size)
+                           resource_size_t size)
 {
-	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP);
+    return __devm_ioremap(dev, offset, size, DEVM_IOREMAP);
 }
 EXPORT_SYMBOL(devm_ioremap);
 
@@ -85,9 +89,9 @@ EXPORT_SYMBOL(devm_ioremap);
  * Managed ioremap_uc().  Map is automatically unmapped on driver detach.
  */
 void __iomem *devm_ioremap_uc(struct device *dev, resource_size_t offset,
-			      resource_size_t size)
+                              resource_size_t size)
 {
-	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_UC);
+    return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_UC);
 }
 EXPORT_SYMBOL_GPL(devm_ioremap_uc);
 
@@ -100,9 +104,9 @@ EXPORT_SYMBOL_GPL(devm_ioremap_uc);
  * Managed ioremap_wc().  Map is automatically unmapped on driver detach.
  */
 void __iomem *devm_ioremap_wc(struct device *dev, resource_size_t offset,
-			      resource_size_t size)
+                              resource_size_t size)
 {
-	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_WC);
+    return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_WC);
 }
 EXPORT_SYMBOL(devm_ioremap_wc);
 
@@ -115,56 +119,60 @@ EXPORT_SYMBOL(devm_ioremap_wc);
  */
 void devm_iounmap(struct device *dev, void __iomem *addr)
 {
-	WARN_ON(devres_destroy(dev, devm_ioremap_release, devm_ioremap_match,
-			       (__force void *)addr));
-	iounmap(addr);
+    WARN_ON(devres_destroy(dev, devm_ioremap_release, devm_ioremap_match,
+                           (__force void *)addr));
+    iounmap(addr);
 }
 EXPORT_SYMBOL(devm_iounmap);
 
 static void __iomem *
-__devm_ioremap_resource(struct device *dev, const struct resource *res,
-			enum devm_ioremap_type type)
+    __devm_ioremap_resource(struct device *dev, const struct resource *res,
+                            enum devm_ioremap_type type)
 {
-	resource_size_t size;
-	void __iomem *dest_ptr;
-	char *pretty_name;
-	int ret;
+    resource_size_t size;
+    void __iomem   *dest_ptr;
+    char           *pretty_name;
+    int             ret;
 
-	BUG_ON(!dev);
+    BUG_ON(!dev);
 
-	if (!res || resource_type(res) != IORESOURCE_MEM) {
-		ret = dev_err_probe(dev, -EINVAL, "invalid resource %pR\n", res);
-		return IOMEM_ERR_PTR(ret);
-	}
+    if (!res || resource_type(res) != IORESOURCE_MEM)
+    {
+        ret = dev_err_probe(dev, -EINVAL, "invalid resource %pR\n", res);
+        return IOMEM_ERR_PTR(ret);
+    }
 
-	if (type == DEVM_IOREMAP && res->flags & IORESOURCE_MEM_NONPOSTED)
-		type = DEVM_IOREMAP_NP;
+    if (type == DEVM_IOREMAP && res->flags & IORESOURCE_MEM_NONPOSTED)
+        type = DEVM_IOREMAP_NP;
 
-	size = resource_size(res);
+    size = resource_size(res);
 
-	if (res->name)
-		pretty_name = devm_kasprintf(dev, GFP_KERNEL, "%s %s",
-					     dev_name(dev), res->name);
-	else
-		pretty_name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
-	if (!pretty_name) {
-		ret = dev_err_probe(dev, -ENOMEM, "can't generate pretty name for resource %pR\n", res);
-		return IOMEM_ERR_PTR(ret);
-	}
+    if (res->name)
+        pretty_name = devm_kasprintf(dev, GFP_KERNEL, "%s %s",
+                                     dev_name(dev), res->name);
+    else
+        pretty_name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
+    if (!pretty_name)
+    {
+        ret = dev_err_probe(dev, -ENOMEM, "can't generate pretty name for resource %pR\n", res);
+        return IOMEM_ERR_PTR(ret);
+    }
 
-	if (!devm_request_mem_region(dev, res->start, size, pretty_name)) {
-		ret = dev_err_probe(dev, -EBUSY, "can't request region for resource %pR\n", res);
-		return IOMEM_ERR_PTR(ret);
-	}
+    if (!devm_request_mem_region(dev, res->start, size, pretty_name))
+    {
+        ret = dev_err_probe(dev, -EBUSY, "can't request region for resource %pR\n", res);
+        return IOMEM_ERR_PTR(ret);
+    }
 
-	dest_ptr = __devm_ioremap(dev, res->start, size, type);
-	if (!dest_ptr) {
-		devm_release_mem_region(dev, res->start, size);
-		ret = dev_err_probe(dev, -ENOMEM, "ioremap failed for resource %pR\n", res);
-		return IOMEM_ERR_PTR(ret);
-	}
+    dest_ptr = __devm_ioremap(dev, res->start, size, type);
+    if (!dest_ptr)
+    {
+        devm_release_mem_region(dev, res->start, size);
+        ret = dev_err_probe(dev, -ENOMEM, "ioremap failed for resource %pR\n", res);
+        return IOMEM_ERR_PTR(ret);
+    }
 
-	return dest_ptr;
+    return dest_ptr;
 }
 
 /**
@@ -186,10 +194,10 @@ __devm_ioremap_resource(struct device *dev, const struct resource *res,
  * Return: a pointer to the remapped memory or an ERR_PTR() encoded error code
  * on failure.
  */
-void __iomem *devm_ioremap_resource(struct device *dev,
-				    const struct resource *res)
+void __iomem *devm_ioremap_resource(struct device         *dev,
+                                    const struct resource *res)
 {
-	return __devm_ioremap_resource(dev, res, DEVM_IOREMAP);
+    return __devm_ioremap_resource(dev, res, DEVM_IOREMAP);
 }
 EXPORT_SYMBOL(devm_ioremap_resource);
 
@@ -202,10 +210,10 @@ EXPORT_SYMBOL(devm_ioremap_resource);
  * Return: a pointer to the remapped memory or an ERR_PTR() encoded error code
  * on failure.
  */
-void __iomem *devm_ioremap_resource_wc(struct device *dev,
-				       const struct resource *res)
+void __iomem *devm_ioremap_resource_wc(struct device         *dev,
+                                       const struct resource *res)
 {
-	return __devm_ioremap_resource(dev, res, DEVM_IOREMAP_WC);
+    return __devm_ioremap_resource(dev, res, DEVM_IOREMAP_WC);
 }
 
 /*
@@ -239,15 +247,15 @@ void __iomem *devm_ioremap_resource_wc(struct device *dev,
  * error code on failure.
  */
 void __iomem *devm_of_iomap(struct device *dev, struct device_node *node, int index,
-			    resource_size_t *size)
+                            resource_size_t *size)
 {
-	struct resource res;
+    struct resource res;
 
-	if (of_address_to_resource(node, index, &res))
-		return IOMEM_ERR_PTR(-EINVAL);
-	if (size)
-		*size = resource_size(&res);
-	return devm_ioremap_resource(dev, &res);
+    if (of_address_to_resource(node, index, &res))
+        return IOMEM_ERR_PTR(-EINVAL);
+    if (size)
+        *size = resource_size(&res);
+    return devm_ioremap_resource(dev, &res);
 }
 EXPORT_SYMBOL(devm_of_iomap);
 
@@ -257,13 +265,13 @@ EXPORT_SYMBOL(devm_of_iomap);
  */
 static void devm_ioport_map_release(struct device *dev, void *res)
 {
-	ioport_unmap(*(void __iomem **)res);
+    ioport_unmap(*(void __iomem **)res);
 }
 
 static int devm_ioport_map_match(struct device *dev, void *res,
-				 void *match_data)
+                                 void *match_data)
 {
-	return *(void **)res == match_data;
+    return *(void **)res == match_data;
 }
 
 /**
@@ -278,23 +286,25 @@ static int devm_ioport_map_match(struct device *dev, void *res,
  * Return: a pointer to the remapped memory or NULL on failure.
  */
 void __iomem *devm_ioport_map(struct device *dev, unsigned long port,
-			       unsigned int nr)
+                              unsigned int nr)
 {
-	void __iomem **ptr, *addr;
+    void __iomem **ptr, *addr;
 
-	ptr = devres_alloc_node(devm_ioport_map_release, sizeof(*ptr), GFP_KERNEL,
-				dev_to_node(dev));
-	if (!ptr)
-		return NULL;
+    ptr = devres_alloc_node(devm_ioport_map_release, sizeof(*ptr), GFP_KERNEL,
+                            dev_to_node(dev));
+    if (!ptr)
+        return NULL;
 
-	addr = ioport_map(port, nr);
-	if (addr) {
-		*ptr = addr;
-		devres_add(dev, ptr);
-	} else
-		devres_free(ptr);
+    addr = ioport_map(port, nr);
+    if (addr)
+    {
+        *ptr = addr;
+        devres_add(dev, ptr);
+    }
+    else
+        devres_free(ptr);
 
-	return addr;
+    return addr;
 }
 EXPORT_SYMBOL(devm_ioport_map);
 
@@ -308,16 +318,16 @@ EXPORT_SYMBOL(devm_ioport_map);
  */
 void devm_ioport_unmap(struct device *dev, void __iomem *addr)
 {
-	ioport_unmap(addr);
-	WARN_ON(devres_destroy(dev, devm_ioport_map_release,
-			       devm_ioport_map_match, (__force void *)addr));
+    ioport_unmap(addr);
+    WARN_ON(devres_destroy(dev, devm_ioport_map_release,
+                           devm_ioport_map_match, (__force void *)addr));
 }
 EXPORT_SYMBOL(devm_ioport_unmap);
 #endif /* CONFIG_HAS_IOPORT_MAP */
 
 static void devm_arch_phys_ac_add_release(struct device *dev, void *res)
 {
-	arch_phys_wc_del(*((int *)res));
+    arch_phys_wc_del(*((int *)res));
 }
 
 /**
@@ -331,37 +341,39 @@ static void devm_arch_phys_ac_add_release(struct device *dev, void *res)
  */
 int devm_arch_phys_wc_add(struct device *dev, unsigned long base, unsigned long size)
 {
-	int *mtrr;
-	int ret;
+    int *mtrr;
+    int  ret;
 
-	mtrr = devres_alloc_node(devm_arch_phys_ac_add_release, sizeof(*mtrr), GFP_KERNEL,
-				 dev_to_node(dev));
-	if (!mtrr)
-		return -ENOMEM;
+    mtrr = devres_alloc_node(devm_arch_phys_ac_add_release, sizeof(*mtrr), GFP_KERNEL,
+                             dev_to_node(dev));
+    if (!mtrr)
+        return -ENOMEM;
 
-	ret = arch_phys_wc_add(base, size);
-	if (ret < 0) {
-		devres_free(mtrr);
-		return ret;
-	}
+    ret = arch_phys_wc_add(base, size);
+    if (ret < 0)
+    {
+        devres_free(mtrr);
+        return ret;
+    }
 
-	*mtrr = ret;
-	devres_add(dev, mtrr);
+    *mtrr = ret;
+    devres_add(dev, mtrr);
 
-	return ret;
+    return ret;
 }
 EXPORT_SYMBOL(devm_arch_phys_wc_add);
 
-struct arch_io_reserve_memtype_wc_devres {
-	resource_size_t start;
-	resource_size_t size;
+struct arch_io_reserve_memtype_wc_devres
+{
+    resource_size_t start;
+    resource_size_t size;
 };
 
 static void devm_arch_io_free_memtype_wc_release(struct device *dev, void *res)
 {
-	const struct arch_io_reserve_memtype_wc_devres *this = res;
+    const struct arch_io_reserve_memtype_wc_devres *this = res;
 
-	arch_io_free_memtype_wc(this->start, this->size);
+    arch_io_free_memtype_wc(this->start, this->size);
 }
 
 /**
@@ -375,26 +387,27 @@ static void devm_arch_io_free_memtype_wc_release(struct device *dev, void *res)
  * information.
  */
 int devm_arch_io_reserve_memtype_wc(struct device *dev, resource_size_t start,
-				    resource_size_t size)
+                                    resource_size_t size)
 {
-	struct arch_io_reserve_memtype_wc_devres *dr;
-	int ret;
+    struct arch_io_reserve_memtype_wc_devres *dr;
+    int                                       ret;
 
-	dr = devres_alloc_node(devm_arch_io_free_memtype_wc_release, sizeof(*dr), GFP_KERNEL,
-			       dev_to_node(dev));
-	if (!dr)
-		return -ENOMEM;
+    dr = devres_alloc_node(devm_arch_io_free_memtype_wc_release, sizeof(*dr), GFP_KERNEL,
+                           dev_to_node(dev));
+    if (!dr)
+        return -ENOMEM;
 
-	ret = arch_io_reserve_memtype_wc(start, size);
-	if (ret < 0) {
-		devres_free(dr);
-		return ret;
-	}
+    ret = arch_io_reserve_memtype_wc(start, size);
+    if (ret < 0)
+    {
+        devres_free(dr);
+        return ret;
+    }
 
-	dr->start = start;
-	dr->size = size;
-	devres_add(dev, dr);
+    dr->start = start;
+    dr->size  = size;
+    devres_add(dev, dr);
 
-	return ret;
+    return ret;
 }
 EXPORT_SYMBOL(devm_arch_io_reserve_memtype_wc);

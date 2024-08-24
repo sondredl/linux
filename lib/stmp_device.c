@@ -15,8 +15,8 @@
 #include <linux/export.h>
 #include <linux/stmp_device.h>
 
-#define STMP_MODULE_CLKGATE	(1 << 30)
-#define STMP_MODULE_SFTRST	(1 << 31)
+#define STMP_MODULE_CLKGATE (1 << 30)
+#define STMP_MODULE_SFTRST  (1 << 31)
 
 /*
  * Clear the bit and poll it cleared.  This is usually called with
@@ -25,53 +25,53 @@
  */
 static int stmp_clear_poll_bit(void __iomem *addr, u32 mask)
 {
-	int timeout = 0x400;
+    int timeout = 0x400;
 
-	writel(mask, addr + STMP_OFFSET_REG_CLR);
-	udelay(1);
-	while ((readl(addr) & mask) && --timeout)
-		/* nothing */;
+    writel(mask, addr + STMP_OFFSET_REG_CLR);
+    udelay(1);
+    while ((readl(addr) & mask) && --timeout)
+        /* nothing */;
 
-	return !timeout;
+    return !timeout;
 }
 
 int stmp_reset_block(void __iomem *reset_addr)
 {
-	int ret;
-	int timeout = 0x400;
+    int ret;
+    int timeout = 0x400;
 
-	/* clear and poll SFTRST */
-	ret = stmp_clear_poll_bit(reset_addr, STMP_MODULE_SFTRST);
-	if (unlikely(ret))
-		goto error;
+    /* clear and poll SFTRST */
+    ret = stmp_clear_poll_bit(reset_addr, STMP_MODULE_SFTRST);
+    if (unlikely(ret))
+        goto error;
 
-	/* clear CLKGATE */
-	writel(STMP_MODULE_CLKGATE, reset_addr + STMP_OFFSET_REG_CLR);
+    /* clear CLKGATE */
+    writel(STMP_MODULE_CLKGATE, reset_addr + STMP_OFFSET_REG_CLR);
 
-	/* set SFTRST to reset the block */
-	writel(STMP_MODULE_SFTRST, reset_addr + STMP_OFFSET_REG_SET);
-	udelay(1);
+    /* set SFTRST to reset the block */
+    writel(STMP_MODULE_SFTRST, reset_addr + STMP_OFFSET_REG_SET);
+    udelay(1);
 
-	/* poll CLKGATE becoming set */
-	while ((!(readl(reset_addr) & STMP_MODULE_CLKGATE)) && --timeout)
-		/* nothing */;
-	if (unlikely(!timeout))
-		goto error;
+    /* poll CLKGATE becoming set */
+    while ((!(readl(reset_addr) & STMP_MODULE_CLKGATE)) && --timeout)
+        /* nothing */;
+    if (unlikely(!timeout))
+        goto error;
 
-	/* clear and poll SFTRST */
-	ret = stmp_clear_poll_bit(reset_addr, STMP_MODULE_SFTRST);
-	if (unlikely(ret))
-		goto error;
+    /* clear and poll SFTRST */
+    ret = stmp_clear_poll_bit(reset_addr, STMP_MODULE_SFTRST);
+    if (unlikely(ret))
+        goto error;
 
-	/* clear and poll CLKGATE */
-	ret = stmp_clear_poll_bit(reset_addr, STMP_MODULE_CLKGATE);
-	if (unlikely(ret))
-		goto error;
+    /* clear and poll CLKGATE */
+    ret = stmp_clear_poll_bit(reset_addr, STMP_MODULE_CLKGATE);
+    if (unlikely(ret))
+        goto error;
 
-	return 0;
+    return 0;
 
 error:
-	pr_err("%s(%p): module reset timeout\n", __func__, reset_addr);
-	return -ETIMEDOUT;
+    pr_err("%s(%p): module reset timeout\n", __func__, reset_addr);
+    return -ETIMEDOUT;
 }
 EXPORT_SYMBOL(stmp_reset_block);

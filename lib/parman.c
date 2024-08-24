@@ -40,189 +40,193 @@
 #include <linux/err.h>
 #include <linux/parman.h>
 
-struct parman_algo {
-	int (*item_add)(struct parman *parman, struct parman_prio *prio,
-			struct parman_item *item);
-	void (*item_remove)(struct parman *parman, struct parman_prio *prio,
-			    struct parman_item *item);
+struct parman_algo
+{
+    int (*item_add)(struct parman *parman, struct parman_prio *prio,
+                    struct parman_item *item);
+    void (*item_remove)(struct parman *parman, struct parman_prio *prio,
+                        struct parman_item *item);
 };
 
-struct parman {
-	const struct parman_ops *ops;
-	void *priv;
-	const struct parman_algo *algo;
-	unsigned long count;
-	unsigned long limit_count;
-	struct list_head prio_list;
+struct parman
+{
+    const struct parman_ops  *ops;
+    void                     *priv;
+    const struct parman_algo *algo;
+    unsigned long             count;
+    unsigned long             limit_count;
+    struct list_head          prio_list;
 };
 
 static int parman_enlarge(struct parman *parman)
 {
-	unsigned long new_count = parman->limit_count +
-				  parman->ops->resize_step;
-	int err;
+    unsigned long new_count = parman->limit_count + parman->ops->resize_step;
+    int           err;
 
-	err = parman->ops->resize(parman->priv, new_count);
-	if (err)
-		return err;
-	parman->limit_count = new_count;
-	return 0;
+    err = parman->ops->resize(parman->priv, new_count);
+    if (err)
+        return err;
+    parman->limit_count = new_count;
+    return 0;
 }
 
 static int parman_shrink(struct parman *parman)
 {
-	unsigned long new_count = parman->limit_count -
-				  parman->ops->resize_step;
-	int err;
+    unsigned long new_count = parman->limit_count - parman->ops->resize_step;
+    int           err;
 
-	if (new_count < parman->ops->base_count)
-		return 0;
-	err = parman->ops->resize(parman->priv, new_count);
-	if (err)
-		return err;
-	parman->limit_count = new_count;
-	return 0;
+    if (new_count < parman->ops->base_count)
+        return 0;
+    err = parman->ops->resize(parman->priv, new_count);
+    if (err)
+        return err;
+    parman->limit_count = new_count;
+    return 0;
 }
 
 static bool parman_prio_used(struct parman_prio *prio)
 {
-	return !list_empty(&prio->item_list);
+    return !list_empty(&prio->item_list);
 }
 
 static struct parman_item *parman_prio_first_item(struct parman_prio *prio)
 {
-	return list_first_entry(&prio->item_list,
-				typeof(struct parman_item), list);
+    return list_first_entry(&prio->item_list,
+                            typeof(struct parman_item), list);
 }
 
 static unsigned long parman_prio_first_index(struct parman_prio *prio)
 {
-	return parman_prio_first_item(prio)->index;
+    return parman_prio_first_item(prio)->index;
 }
 
 static struct parman_item *parman_prio_last_item(struct parman_prio *prio)
 {
-	return list_last_entry(&prio->item_list,
-			       typeof(struct parman_item), list);
+    return list_last_entry(&prio->item_list,
+                           typeof(struct parman_item), list);
 }
 
 static unsigned long parman_prio_last_index(struct parman_prio *prio)
 {
-	return parman_prio_last_item(prio)->index;
+    return parman_prio_last_item(prio)->index;
 }
 
-static unsigned long parman_lsort_new_index_find(struct parman *parman,
-						 struct parman_prio *prio)
+static unsigned long parman_lsort_new_index_find(struct parman      *parman,
+                                                 struct parman_prio *prio)
 {
-	list_for_each_entry_from_reverse(prio, &parman->prio_list, list) {
-		if (!parman_prio_used(prio))
-			continue;
-		return parman_prio_last_index(prio) + 1;
-	}
-	return 0;
+    list_for_each_entry_from_reverse(prio, &parman->prio_list, list)
+    {
+        if (!parman_prio_used(prio))
+            continue;
+        return parman_prio_last_index(prio) + 1;
+    }
+    return 0;
 }
 
 static void __parman_prio_move(struct parman *parman, struct parman_prio *prio,
-			       struct parman_item *item, unsigned long to_index,
-			       unsigned long count)
+                               struct parman_item *item, unsigned long to_index,
+                               unsigned long count)
 {
-	parman->ops->move(parman->priv, item->index, to_index, count);
+    parman->ops->move(parman->priv, item->index, to_index, count);
 }
 
-static void parman_prio_shift_down(struct parman *parman,
-				   struct parman_prio *prio)
+static void parman_prio_shift_down(struct parman      *parman,
+                                   struct parman_prio *prio)
 {
-	struct parman_item *item;
-	unsigned long to_index;
+    struct parman_item *item;
+    unsigned long       to_index;
 
-	if (!parman_prio_used(prio))
-		return;
-	item = parman_prio_first_item(prio);
-	to_index = parman_prio_last_index(prio) + 1;
-	__parman_prio_move(parman, prio, item, to_index, 1);
-	list_move_tail(&item->list, &prio->item_list);
-	item->index = to_index;
+    if (!parman_prio_used(prio))
+        return;
+    item     = parman_prio_first_item(prio);
+    to_index = parman_prio_last_index(prio) + 1;
+    __parman_prio_move(parman, prio, item, to_index, 1);
+    list_move_tail(&item->list, &prio->item_list);
+    item->index = to_index;
 }
 
-static void parman_prio_shift_up(struct parman *parman,
-				 struct parman_prio *prio)
+static void parman_prio_shift_up(struct parman      *parman,
+                                 struct parman_prio *prio)
 {
-	struct parman_item *item;
-	unsigned long to_index;
+    struct parman_item *item;
+    unsigned long       to_index;
 
-	if (!parman_prio_used(prio))
-		return;
-	item = parman_prio_last_item(prio);
-	to_index = parman_prio_first_index(prio) - 1;
-	__parman_prio_move(parman, prio, item, to_index, 1);
-	list_move(&item->list, &prio->item_list);
-	item->index = to_index;
+    if (!parman_prio_used(prio))
+        return;
+    item     = parman_prio_last_item(prio);
+    to_index = parman_prio_first_index(prio) - 1;
+    __parman_prio_move(parman, prio, item, to_index, 1);
+    list_move(&item->list, &prio->item_list);
+    item->index = to_index;
 }
 
-static void parman_prio_item_remove(struct parman *parman,
-				    struct parman_prio *prio,
-				    struct parman_item *item)
+static void parman_prio_item_remove(struct parman      *parman,
+                                    struct parman_prio *prio,
+                                    struct parman_item *item)
 {
-	struct parman_item *last_item;
-	unsigned long to_index;
+    struct parman_item *last_item;
+    unsigned long       to_index;
 
-	last_item = parman_prio_last_item(prio);
-	if (last_item == item) {
-		list_del(&item->list);
-		return;
-	}
-	to_index = item->index;
-	__parman_prio_move(parman, prio, last_item, to_index, 1);
-	list_del(&last_item->list);
-	list_replace(&item->list, &last_item->list);
-	last_item->index = to_index;
+    last_item = parman_prio_last_item(prio);
+    if (last_item == item)
+    {
+        list_del(&item->list);
+        return;
+    }
+    to_index = item->index;
+    __parman_prio_move(parman, prio, last_item, to_index, 1);
+    list_del(&last_item->list);
+    list_replace(&item->list, &last_item->list);
+    last_item->index = to_index;
 }
 
-static int parman_lsort_item_add(struct parman *parman,
-				 struct parman_prio *prio,
-				 struct parman_item *item)
+static int parman_lsort_item_add(struct parman      *parman,
+                                 struct parman_prio *prio,
+                                 struct parman_item *item)
 {
-	struct parman_prio *prio2;
-	unsigned long new_index;
-	int err;
+    struct parman_prio *prio2;
+    unsigned long       new_index;
+    int                 err;
 
-	if (parman->count + 1 > parman->limit_count) {
-		err = parman_enlarge(parman);
-		if (err)
-			return err;
-	}
+    if (parman->count + 1 > parman->limit_count)
+    {
+        err = parman_enlarge(parman);
+        if (err)
+            return err;
+    }
 
-	new_index = parman_lsort_new_index_find(parman, prio);
-	list_for_each_entry_reverse(prio2, &parman->prio_list, list) {
-		if (prio2 == prio)
-			break;
-		parman_prio_shift_down(parman, prio2);
-	}
-	item->index = new_index;
-	list_add_tail(&item->list, &prio->item_list);
-	parman->count++;
-	return 0;
+    new_index = parman_lsort_new_index_find(parman, prio);
+    list_for_each_entry_reverse(prio2, &parman->prio_list, list)
+    {
+        if (prio2 == prio)
+            break;
+        parman_prio_shift_down(parman, prio2);
+    }
+    item->index = new_index;
+    list_add_tail(&item->list, &prio->item_list);
+    parman->count++;
+    return 0;
 }
 
-static void parman_lsort_item_remove(struct parman *parman,
-				     struct parman_prio *prio,
-				     struct parman_item *item)
+static void parman_lsort_item_remove(struct parman      *parman,
+                                     struct parman_prio *prio,
+                                     struct parman_item *item)
 {
-	parman_prio_item_remove(parman, prio, item);
-	list_for_each_entry_continue(prio, &parman->prio_list, list)
-		parman_prio_shift_up(parman, prio);
-	parman->count--;
-	if (parman->limit_count - parman->count >= parman->ops->resize_step)
-		parman_shrink(parman);
+    parman_prio_item_remove(parman, prio, item);
+    list_for_each_entry_continue(prio, &parman->prio_list, list)
+        parman_prio_shift_up(parman, prio);
+    parman->count--;
+    if (parman->limit_count - parman->count >= parman->ops->resize_step)
+        parman_shrink(parman);
 }
 
 static const struct parman_algo parman_lsort = {
-	.item_add	= parman_lsort_item_add,
-	.item_remove	= parman_lsort_item_remove,
+    .item_add    = parman_lsort_item_add,
+    .item_remove = parman_lsort_item_remove,
 };
 
 static const struct parman_algo *parman_algos[] = {
-	&parman_lsort,
+    &parman_lsort,
 };
 
 /**
@@ -266,17 +270,17 @@ static const struct parman_algo *parman_algos[] = {
  */
 struct parman *parman_create(const struct parman_ops *ops, void *priv)
 {
-	struct parman *parman;
+    struct parman *parman;
 
-	parman = kzalloc(sizeof(*parman), GFP_KERNEL);
-	if (!parman)
-		return NULL;
-	INIT_LIST_HEAD(&parman->prio_list);
-	parman->ops = ops;
-	parman->priv = priv;
-	parman->limit_count = ops->base_count;
-	parman->algo = parman_algos[ops->algo];
-	return parman;
+    parman = kzalloc(sizeof(*parman), GFP_KERNEL);
+    if (!parman)
+        return NULL;
+    INIT_LIST_HEAD(&parman->prio_list);
+    parman->ops         = ops;
+    parman->priv        = priv;
+    parman->limit_count = ops->base_count;
+    parman->algo        = parman_algos[ops->algo];
+    return parman;
 }
 EXPORT_SYMBOL(parman_create);
 
@@ -288,8 +292,8 @@ EXPORT_SYMBOL(parman_create);
  */
 void parman_destroy(struct parman *parman)
 {
-	WARN_ON(!list_empty(&parman->prio_list));
-	kfree(parman);
+    WARN_ON(!list_empty(&parman->prio_list));
+    kfree(parman);
 }
 EXPORT_SYMBOL(parman_destroy);
 
@@ -305,21 +309,22 @@ EXPORT_SYMBOL(parman_destroy);
  * initialize a priority chunk for it using this function.
  */
 void parman_prio_init(struct parman *parman, struct parman_prio *prio,
-		      unsigned long priority)
+                      unsigned long priority)
 {
-	struct parman_prio *prio2;
-	struct list_head *pos;
+    struct parman_prio *prio2;
+    struct list_head   *pos;
 
-	INIT_LIST_HEAD(&prio->item_list);
-	prio->priority = priority;
+    INIT_LIST_HEAD(&prio->item_list);
+    prio->priority = priority;
 
-	/* Position inside the list according to priority */
-	list_for_each(pos, &parman->prio_list) {
-		prio2 = list_entry(pos, typeof(*prio2), list);
-		if (prio2->priority > prio->priority)
-			break;
-	}
-	list_add_tail(&prio->list, pos);
+    /* Position inside the list according to priority */
+    list_for_each(pos, &parman->prio_list)
+    {
+        prio2 = list_entry(pos, typeof(*prio2), list);
+        if (prio2->priority > prio->priority)
+            break;
+    }
+    list_add_tail(&prio->list, pos);
 }
 EXPORT_SYMBOL(parman_prio_init);
 
@@ -331,8 +336,8 @@ EXPORT_SYMBOL(parman_prio_init);
  */
 void parman_prio_fini(struct parman_prio *prio)
 {
-	WARN_ON(parman_prio_used(prio));
-	list_del(&prio->list);
+    WARN_ON(parman_prio_used(prio));
+    list_del(&prio->list);
 }
 EXPORT_SYMBOL(parman_prio_fini);
 
@@ -349,9 +354,9 @@ EXPORT_SYMBOL(parman_prio_fini);
  * Returns 0 in case of success, negative number to indicate an error.
  */
 int parman_item_add(struct parman *parman, struct parman_prio *prio,
-		    struct parman_item *item)
+                    struct parman_item *item)
 {
-	return parman->algo->item_add(parman, prio, item);
+    return parman->algo->item_add(parman, prio, item);
 }
 EXPORT_SYMBOL(parman_item_add);
 
@@ -364,9 +369,9 @@ EXPORT_SYMBOL(parman_item_add);
  * Note: all locking must be provided by the caller.
  */
 void parman_item_remove(struct parman *parman, struct parman_prio *prio,
-			struct parman_item *item)
+                        struct parman_item *item)
 {
-	parman->algo->item_remove(parman, prio, item);
+    parman->algo->item_remove(parman, prio, item);
 }
 EXPORT_SYMBOL(parman_item_remove);
 

@@ -21,21 +21,23 @@
  */
 unsigned int cpumask_next_wrap(int n, const struct cpumask *mask, int start, bool wrap)
 {
-	unsigned int next;
+    unsigned int next;
 
 again:
-	next = cpumask_next(n, mask);
+    next = cpumask_next(n, mask);
 
-	if (wrap && n < start && next >= start) {
-		return nr_cpumask_bits;
+    if (wrap && n < start && next >= start)
+    {
+        return nr_cpumask_bits;
+    }
+    else if (next >= nr_cpumask_bits)
+    {
+        wrap = true;
+        n    = -1;
+        goto again;
+    }
 
-	} else if (next >= nr_cpumask_bits) {
-		wrap = true;
-		n = -1;
-		goto again;
-	}
-
-	return next;
+    return next;
 }
 EXPORT_SYMBOL(cpumask_next_wrap);
 
@@ -59,16 +61,17 @@ EXPORT_SYMBOL(cpumask_next_wrap);
  */
 bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node)
 {
-	*mask = kmalloc_node(cpumask_size(), flags, node);
+    *mask = kmalloc_node(cpumask_size(), flags, node);
 
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
-	if (!*mask) {
-		printk(KERN_ERR "=> alloc_cpumask_var: failed!\n");
-		dump_stack();
-	}
-#endif
+    #ifdef CONFIG_DEBUG_PER_CPU_MAPS
+    if (!*mask)
+    {
+        printk(KERN_ERR "=> alloc_cpumask_var: failed!\n");
+        dump_stack();
+    }
+    #endif
 
-	return *mask != NULL;
+    return *mask != NULL;
 }
 EXPORT_SYMBOL(alloc_cpumask_var_node);
 
@@ -83,10 +86,10 @@ EXPORT_SYMBOL(alloc_cpumask_var_node);
  */
 void __init alloc_bootmem_cpumask_var(cpumask_var_t *mask)
 {
-	*mask = memblock_alloc(cpumask_size(), SMP_CACHE_BYTES);
-	if (!*mask)
-		panic("%s: Failed to allocate %u bytes\n", __func__,
-		      cpumask_size());
+    *mask = memblock_alloc(cpumask_size(), SMP_CACHE_BYTES);
+    if (!*mask)
+        panic("%s: Failed to allocate %u bytes\n", __func__,
+              cpumask_size());
 }
 
 /**
@@ -97,7 +100,7 @@ void __init alloc_bootmem_cpumask_var(cpumask_var_t *mask)
  */
 void free_cpumask_var(cpumask_var_t mask)
 {
-	kfree(mask);
+    kfree(mask);
 }
 EXPORT_SYMBOL(free_cpumask_var);
 
@@ -107,7 +110,7 @@ EXPORT_SYMBOL(free_cpumask_var);
  */
 void __init free_bootmem_cpumask_var(cpumask_var_t mask)
 {
-	memblock_free(mask, cpumask_size());
+    memblock_free(mask, cpumask_size());
 }
 #endif
 
@@ -142,15 +145,15 @@ void __init free_bootmem_cpumask_var(cpumask_var_t mask)
  */
 unsigned int cpumask_local_spread(unsigned int i, int node)
 {
-	unsigned int cpu;
+    unsigned int cpu;
 
-	/* Wrap: we always want a cpu. */
-	i %= num_online_cpus();
+    /* Wrap: we always want a cpu. */
+    i %= num_online_cpus();
 
-	cpu = sched_numa_find_nth_cpu(cpu_online_mask, i, node);
+    cpu = sched_numa_find_nth_cpu(cpu_online_mask, i, node);
 
-	WARN_ON(cpu >= nr_cpu_ids);
-	return cpu;
+    WARN_ON(cpu >= nr_cpu_ids);
+    return cpu;
 }
 EXPORT_SYMBOL(cpumask_local_spread);
 
@@ -167,19 +170,19 @@ static DEFINE_PER_CPU(int, distribute_cpu_mask_prev);
  * Return: >= nr_cpu_ids if the intersection is empty.
  */
 unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
-			       const struct cpumask *src2p)
+                                        const struct cpumask *src2p)
 {
-	unsigned int next, prev;
+    unsigned int next, prev;
 
-	/* NOTE: our first selection will skip 0. */
-	prev = __this_cpu_read(distribute_cpu_mask_prev);
+    /* NOTE: our first selection will skip 0. */
+    prev = __this_cpu_read(distribute_cpu_mask_prev);
 
-	next = find_next_and_bit_wrap(cpumask_bits(src1p), cpumask_bits(src2p),
-					nr_cpumask_bits, prev + 1);
-	if (next < nr_cpu_ids)
-		__this_cpu_write(distribute_cpu_mask_prev, next);
+    next = find_next_and_bit_wrap(cpumask_bits(src1p), cpumask_bits(src2p),
+                                  nr_cpumask_bits, prev + 1);
+    if (next < nr_cpu_ids)
+        __this_cpu_write(distribute_cpu_mask_prev, next);
 
-	return next;
+    return next;
 }
 EXPORT_SYMBOL(cpumask_any_and_distribute);
 
@@ -191,14 +194,14 @@ EXPORT_SYMBOL(cpumask_any_and_distribute);
  */
 unsigned int cpumask_any_distribute(const struct cpumask *srcp)
 {
-	unsigned int next, prev;
+    unsigned int next, prev;
 
-	/* NOTE: our first selection will skip 0. */
-	prev = __this_cpu_read(distribute_cpu_mask_prev);
-	next = find_next_bit_wrap(cpumask_bits(srcp), nr_cpumask_bits, prev + 1);
-	if (next < nr_cpu_ids)
-		__this_cpu_write(distribute_cpu_mask_prev, next);
+    /* NOTE: our first selection will skip 0. */
+    prev = __this_cpu_read(distribute_cpu_mask_prev);
+    next = find_next_bit_wrap(cpumask_bits(srcp), nr_cpumask_bits, prev + 1);
+    if (next < nr_cpu_ids)
+        __this_cpu_write(distribute_cpu_mask_prev, next);
 
-	return next;
+    return next;
 }
 EXPORT_SYMBOL(cpumask_any_distribute);

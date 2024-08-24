@@ -19,23 +19,25 @@
 
 static int __init early_hostname(char *arg)
 {
-	size_t bufsize = sizeof(init_uts_ns.name.nodename);
-	size_t maxlen  = bufsize - 1;
-	ssize_t arglen;
+    size_t  bufsize = sizeof(init_uts_ns.name.nodename);
+    size_t  maxlen  = bufsize - 1;
+    ssize_t arglen;
 
-	arglen = strscpy(init_uts_ns.name.nodename, arg, bufsize);
-	if (arglen < 0) {
-		pr_warn("hostname parameter exceeds %zd characters and will be truncated",
-			maxlen);
-	}
-	return 0;
+    arglen = strscpy(init_uts_ns.name.nodename, arg, bufsize);
+    if (arglen < 0)
+    {
+        pr_warn("hostname parameter exceeds %zd characters and will be truncated",
+                maxlen);
+    }
+    return 0;
 }
 early_param("hostname", early_hostname);
 
 const char linux_proc_banner[] =
-	"%s version %s"
-	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
-	" (" LINUX_COMPILER ") %s\n";
+    "%s version %s"
+    " (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST
+    ")"
+    " (" LINUX_COMPILER ") %s\n";
 
 BUILD_SALT;
 BUILD_LTO_INFO;
@@ -47,7 +49,7 @@ BUILD_LTO_INFO;
  */
 
 struct uts_namespace init_uts_ns __weak;
-const char linux_banner[] __weak;
+const char                       linux_banner[] __weak;
 
 #include "version-timestamp.c"
 

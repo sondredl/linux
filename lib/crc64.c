@@ -50,16 +50,17 @@ MODULE_LICENSE("GPL v2");
  */
 u64 __pure crc64_be(u64 crc, const void *p, size_t len)
 {
-	size_t i, t;
+    size_t i, t;
 
-	const unsigned char *_p = p;
+    const unsigned char *_p = p;
 
-	for (i = 0; i < len; i++) {
-		t = ((crc >> 56) ^ (*_p++)) & 0xFF;
-		crc = crc64table[t] ^ (crc << 8);
-	}
+    for (i = 0; i < len; i++)
+    {
+        t   = ((crc >> 56) ^ (*_p++)) & 0xFF;
+        crc = crc64table[t] ^ (crc << 8);
+    }
 
-	return crc;
+    return crc;
 }
 EXPORT_SYMBOL_GPL(crc64_be);
 
@@ -72,14 +73,14 @@ EXPORT_SYMBOL_GPL(crc64_be);
  */
 u64 __pure crc64_rocksoft_generic(u64 crc, const void *p, size_t len)
 {
-	const unsigned char *_p = p;
-	size_t i;
+    const unsigned char *_p = p;
+    size_t               i;
 
-	crc = ~crc;
+    crc = ~crc;
 
-	for (i = 0; i < len; i++)
-		crc = (crc >> 8) ^ crc64rocksofttable[(crc & 0xff) ^ *_p++];
+    for (i = 0; i < len; i++)
+        crc = (crc >> 8) ^ crc64rocksofttable[(crc & 0xff) ^ *_p++];
 
-	return ~crc;
+    return ~crc;
 }
 EXPORT_SYMBOL_GPL(crc64_rocksoft_generic);

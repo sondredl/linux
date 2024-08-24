@@ -12,63 +12,63 @@
 
 static sector_t bio_discard_limit(struct block_device *bdev, sector_t sector)
 {
-	unsigned int discard_granularity = bdev_discard_granularity(bdev);
-	sector_t granularity_aligned_sector;
+    unsigned int discard_granularity = bdev_discard_granularity(bdev);
+    sector_t     granularity_aligned_sector;
 
-	if (bdev_is_partition(bdev))
-		sector += bdev->bd_start_sect;
+    if (bdev_is_partition(bdev))
+        sector += bdev->bd_start_sect;
 
-	granularity_aligned_sector =
-		round_up(sector, discard_granularity >> SECTOR_SHIFT);
+    granularity_aligned_sector =
+        round_up(sector, discard_granularity >> SECTOR_SHIFT);
 
-	/*
-	 * Make sure subsequent bios start aligned to the discard granularity if
-	 * it needs to be split.
-	 */
-	if (granularity_aligned_sector != sector)
-		return granularity_aligned_sector - sector;
+    /*
+     * Make sure subsequent bios start aligned to the discard granularity if
+     * it needs to be split.
+     */
+    if (granularity_aligned_sector != sector)
+        return granularity_aligned_sector - sector;
 
-	/*
-	 * Align the bio size to the discard granularity to make splitting the bio
-	 * at discard granularity boundaries easier in the driver if needed.
-	 */
-	return round_down(UINT_MAX, discard_granularity) >> SECTOR_SHIFT;
+    /*
+     * Align the bio size to the discard granularity to make splitting the bio
+     * at discard granularity boundaries easier in the driver if needed.
+     */
+    return round_down(UINT_MAX, discard_granularity) >> SECTOR_SHIFT;
 }
 
 struct bio *blk_alloc_discard_bio(struct block_device *bdev,
-		sector_t *sector, sector_t *nr_sects, gfp_t gfp_mask)
+                                  sector_t *sector, sector_t *nr_sects, gfp_t gfp_mask)
 {
-	sector_t bio_sects = min(*nr_sects, bio_discard_limit(bdev, *sector));
-	struct bio *bio;
+    sector_t    bio_sects = min(*nr_sects, bio_discard_limit(bdev, *sector));
+    struct bio *bio;
 
-	if (!bio_sects)
-		return NULL;
+    if (!bio_sects)
+        return NULL;
 
-	bio = bio_alloc(bdev, 0, REQ_OP_DISCARD, gfp_mask);
-	if (!bio)
-		return NULL;
-	bio->bi_iter.bi_sector = *sector;
-	bio->bi_iter.bi_size = bio_sects << SECTOR_SHIFT;
-	*sector += bio_sects;
-	*nr_sects -= bio_sects;
-	/*
-	 * We can loop for a long time in here if someone does full device
-	 * discards (like mkfs).  Be nice and allow us to schedule out to avoid
-	 * softlocking if preempt is disabled.
-	 */
-	cond_resched();
-	return bio;
+    bio = bio_alloc(bdev, 0, REQ_OP_DISCARD, gfp_mask);
+    if (!bio)
+        return NULL;
+    bio->bi_iter.bi_sector = *sector;
+    bio->bi_iter.bi_size   = bio_sects << SECTOR_SHIFT;
+    *sector += bio_sects;
+    *nr_sects -= bio_sects;
+    /*
+     * We can loop for a long time in here if someone does full device
+     * discards (like mkfs).  Be nice and allow us to schedule out to avoid
+     * softlocking if preempt is disabled.
+     */
+    cond_resched();
+    return bio;
 }
 
 int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop)
+                           sector_t nr_sects, gfp_t gfp_mask, struct bio **biop)
 {
-	struct bio *bio;
+    struct bio *bio;
 
-	while ((bio = blk_alloc_discard_bio(bdev, &sector, &nr_sects,
-			gfp_mask)))
-		*biop = bio_chain_and_submit(*biop, bio);
-	return 0;
+    while ((bio = blk_alloc_discard_bio(bdev, &sector, &nr_sects,
+                                        gfp_mask)))
+        *biop = bio_chain_and_submit(*biop, bio);
+    return 0;
 }
 EXPORT_SYMBOL(__blkdev_issue_discard);
 
@@ -83,58 +83,60 @@ EXPORT_SYMBOL(__blkdev_issue_discard);
  *    Issue a discard request for the sectors in question.
  */
 int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask)
+                         sector_t nr_sects, gfp_t gfp_mask)
 {
-	struct bio *bio = NULL;
-	struct blk_plug plug;
-	int ret;
+    struct bio     *bio = NULL;
+    struct blk_plug plug;
+    int             ret;
 
-	blk_start_plug(&plug);
-	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, &bio);
-	if (!ret && bio) {
-		ret = submit_bio_wait(bio);
-		if (ret == -EOPNOTSUPP)
-			ret = 0;
-		bio_put(bio);
-	}
-	blk_finish_plug(&plug);
+    blk_start_plug(&plug);
+    ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, &bio);
+    if (!ret && bio)
+    {
+        ret = submit_bio_wait(bio);
+        if (ret == -EOPNOTSUPP)
+            ret = 0;
+        bio_put(bio);
+    }
+    blk_finish_plug(&plug);
 
-	return ret;
+    return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_discard);
 
 static int __blkdev_issue_write_zeroes(struct block_device *bdev,
-		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
-		struct bio **biop, unsigned flags)
+                                       sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
+                                       struct bio **biop, unsigned flags)
 {
-	struct bio *bio = *biop;
-	unsigned int max_sectors;
+    struct bio  *bio = *biop;
+    unsigned int max_sectors;
 
-	if (bdev_read_only(bdev))
-		return -EPERM;
+    if (bdev_read_only(bdev))
+        return -EPERM;
 
-	/* Ensure that max_sectors doesn't overflow bi_size */
-	max_sectors = bdev_write_zeroes_sectors(bdev);
+    /* Ensure that max_sectors doesn't overflow bi_size */
+    max_sectors = bdev_write_zeroes_sectors(bdev);
 
-	if (max_sectors == 0)
-		return -EOPNOTSUPP;
+    if (max_sectors == 0)
+        return -EOPNOTSUPP;
 
-	while (nr_sects) {
-		unsigned int len = min_t(sector_t, nr_sects, max_sectors);
+    while (nr_sects)
+    {
+        unsigned int len = min_t(sector_t, nr_sects, max_sectors);
 
-		bio = blk_next_bio(bio, bdev, 0, REQ_OP_WRITE_ZEROES, gfp_mask);
-		bio->bi_iter.bi_sector = sector;
-		if (flags & BLKDEV_ZERO_NOUNMAP)
-			bio->bi_opf |= REQ_NOUNMAP;
+        bio                    = blk_next_bio(bio, bdev, 0, REQ_OP_WRITE_ZEROES, gfp_mask);
+        bio->bi_iter.bi_sector = sector;
+        if (flags & BLKDEV_ZERO_NOUNMAP)
+            bio->bi_opf |= REQ_NOUNMAP;
 
-		bio->bi_iter.bi_size = len << SECTOR_SHIFT;
-		nr_sects -= len;
-		sector += len;
-		cond_resched();
-	}
+        bio->bi_iter.bi_size = len << SECTOR_SHIFT;
+        nr_sects -= len;
+        sector += len;
+        cond_resched();
+    }
 
-	*biop = bio;
-	return 0;
+    *biop = bio;
+    return 0;
 }
 
 /*
@@ -145,40 +147,42 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
  */
 static unsigned int __blkdev_sectors_to_bio_pages(sector_t nr_sects)
 {
-	sector_t pages = DIV_ROUND_UP_SECTOR_T(nr_sects, PAGE_SIZE / 512);
+    sector_t pages = DIV_ROUND_UP_SECTOR_T(nr_sects, PAGE_SIZE / 512);
 
-	return min(pages, (sector_t)BIO_MAX_VECS);
+    return min(pages, (sector_t)BIO_MAX_VECS);
 }
 
 static int __blkdev_issue_zero_pages(struct block_device *bdev,
-		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
-		struct bio **biop)
+                                     sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
+                                     struct bio **biop)
 {
-	struct bio *bio = *biop;
-	int bi_size = 0;
-	unsigned int sz;
+    struct bio  *bio     = *biop;
+    int          bi_size = 0;
+    unsigned int sz;
 
-	if (bdev_read_only(bdev))
-		return -EPERM;
+    if (bdev_read_only(bdev))
+        return -EPERM;
 
-	while (nr_sects != 0) {
-		bio = blk_next_bio(bio, bdev, __blkdev_sectors_to_bio_pages(nr_sects),
-				   REQ_OP_WRITE, gfp_mask);
-		bio->bi_iter.bi_sector = sector;
+    while (nr_sects != 0)
+    {
+        bio                    = blk_next_bio(bio, bdev, __blkdev_sectors_to_bio_pages(nr_sects),
+                                              REQ_OP_WRITE, gfp_mask);
+        bio->bi_iter.bi_sector = sector;
 
-		while (nr_sects != 0) {
-			sz = min((sector_t) PAGE_SIZE, nr_sects << 9);
-			bi_size = bio_add_page(bio, ZERO_PAGE(0), sz, 0);
-			nr_sects -= bi_size >> 9;
-			sector += bi_size >> 9;
-			if (bi_size < sz)
-				break;
-		}
-		cond_resched();
-	}
+        while (nr_sects != 0)
+        {
+            sz      = min((sector_t)PAGE_SIZE, nr_sects << 9);
+            bi_size = bio_add_page(bio, ZERO_PAGE(0), sz, 0);
+            nr_sects -= bi_size >> 9;
+            sector += bi_size >> 9;
+            if (bi_size < sz)
+                break;
+        }
+        cond_resched();
+    }
 
-	*biop = bio;
-	return 0;
+    *biop = bio;
+    return 0;
 }
 
 /**
@@ -201,23 +205,23 @@ static int __blkdev_issue_zero_pages(struct block_device *bdev,
  *  -EOPNOTSUPP if no explicit hardware offload for zeroing is provided.
  */
 int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
-		unsigned flags)
+                           sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
+                           unsigned flags)
 {
-	int ret;
-	sector_t bs_mask;
+    int      ret;
+    sector_t bs_mask;
 
-	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
-	if ((sector | nr_sects) & bs_mask)
-		return -EINVAL;
+    bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
+    if ((sector | nr_sects) & bs_mask)
+        return -EINVAL;
 
-	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
-			biop, flags);
-	if (ret != -EOPNOTSUPP || (flags & BLKDEV_ZERO_NOFALLBACK))
-		return ret;
+    ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
+                                      biop, flags);
+    if (ret != -EOPNOTSUPP || (flags & BLKDEV_ZERO_NOFALLBACK))
+        return ret;
 
-	return __blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp_mask,
-					 biop);
+    return __blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp_mask,
+                                     biop);
 }
 EXPORT_SYMBOL(__blkdev_issue_zeroout);
 
@@ -235,95 +239,106 @@ EXPORT_SYMBOL(__blkdev_issue_zeroout);
  *  valid values for %flags.
  */
 int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, unsigned flags)
+                         sector_t nr_sects, gfp_t gfp_mask, unsigned flags)
 {
-	int ret = 0;
-	sector_t bs_mask;
-	struct bio *bio;
-	struct blk_plug plug;
-	bool try_write_zeroes = !!bdev_write_zeroes_sectors(bdev);
+    int             ret = 0;
+    sector_t        bs_mask;
+    struct bio     *bio;
+    struct blk_plug plug;
+    bool            try_write_zeroes = !!bdev_write_zeroes_sectors(bdev);
 
-	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
-	if ((sector | nr_sects) & bs_mask)
-		return -EINVAL;
+    bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
+    if ((sector | nr_sects) & bs_mask)
+        return -EINVAL;
 
 retry:
-	bio = NULL;
-	blk_start_plug(&plug);
-	if (try_write_zeroes) {
-		ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects,
-						  gfp_mask, &bio, flags);
-	} else if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
-		ret = __blkdev_issue_zero_pages(bdev, sector, nr_sects,
-						gfp_mask, &bio);
-	} else {
-		/* No zeroing offload support */
-		ret = -EOPNOTSUPP;
-	}
-	if (ret == 0 && bio) {
-		ret = submit_bio_wait(bio);
-		bio_put(bio);
-	}
-	blk_finish_plug(&plug);
-	if (ret && try_write_zeroes) {
-		if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
-			try_write_zeroes = false;
-			goto retry;
-		}
-		if (!bdev_write_zeroes_sectors(bdev)) {
-			/*
-			 * Zeroing offload support was indicated, but the
-			 * device reported ILLEGAL REQUEST (for some devices
-			 * there is no non-destructive way to verify whether
-			 * WRITE ZEROES is actually supported).
-			 */
-			ret = -EOPNOTSUPP;
-		}
-	}
+    bio = NULL;
+    blk_start_plug(&plug);
+    if (try_write_zeroes)
+    {
+        ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects,
+                                          gfp_mask, &bio, flags);
+    }
+    else if (!(flags & BLKDEV_ZERO_NOFALLBACK))
+    {
+        ret = __blkdev_issue_zero_pages(bdev, sector, nr_sects,
+                                        gfp_mask, &bio);
+    }
+    else
+    {
+        /* No zeroing offload support */
+        ret = -EOPNOTSUPP;
+    }
+    if (ret == 0 && bio)
+    {
+        ret = submit_bio_wait(bio);
+        bio_put(bio);
+    }
+    blk_finish_plug(&plug);
+    if (ret && try_write_zeroes)
+    {
+        if (!(flags & BLKDEV_ZERO_NOFALLBACK))
+        {
+            try_write_zeroes = false;
+            goto retry;
+        }
+        if (!bdev_write_zeroes_sectors(bdev))
+        {
+            /*
+             * Zeroing offload support was indicated, but the
+             * device reported ILLEGAL REQUEST (for some devices
+             * there is no non-destructive way to verify whether
+             * WRITE ZEROES is actually supported).
+             */
+            ret = -EOPNOTSUPP;
+        }
+    }
 
-	return ret;
+    return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_zeroout);
 
 int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp)
+                              sector_t nr_sects, gfp_t gfp)
 {
-	sector_t bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
-	unsigned int max_sectors = bdev_max_secure_erase_sectors(bdev);
-	struct bio *bio = NULL;
-	struct blk_plug plug;
-	int ret = 0;
+    sector_t        bs_mask     = (bdev_logical_block_size(bdev) >> 9) - 1;
+    unsigned int    max_sectors = bdev_max_secure_erase_sectors(bdev);
+    struct bio     *bio         = NULL;
+    struct blk_plug plug;
+    int             ret = 0;
 
-	/* make sure that "len << SECTOR_SHIFT" doesn't overflow */
-	if (max_sectors > UINT_MAX >> SECTOR_SHIFT)
-		max_sectors = UINT_MAX >> SECTOR_SHIFT;
-	max_sectors &= ~bs_mask;
+    /* make sure that "len << SECTOR_SHIFT" doesn't overflow */
+    if (max_sectors > UINT_MAX >> SECTOR_SHIFT)
+        max_sectors = UINT_MAX >> SECTOR_SHIFT;
+    max_sectors &= ~bs_mask;
 
-	if (max_sectors == 0)
-		return -EOPNOTSUPP;
-	if ((sector | nr_sects) & bs_mask)
-		return -EINVAL;
-	if (bdev_read_only(bdev))
-		return -EPERM;
+    if (max_sectors == 0)
+        return -EOPNOTSUPP;
+    if ((sector | nr_sects) & bs_mask)
+        return -EINVAL;
+    if (bdev_read_only(bdev))
+        return -EPERM;
 
-	blk_start_plug(&plug);
-	while (nr_sects) {
-		unsigned int len = min_t(sector_t, nr_sects, max_sectors);
+    blk_start_plug(&plug);
+    while (nr_sects)
+    {
+        unsigned int len = min_t(sector_t, nr_sects, max_sectors);
 
-		bio = blk_next_bio(bio, bdev, 0, REQ_OP_SECURE_ERASE, gfp);
-		bio->bi_iter.bi_sector = sector;
-		bio->bi_iter.bi_size = len << SECTOR_SHIFT;
+        bio                    = blk_next_bio(bio, bdev, 0, REQ_OP_SECURE_ERASE, gfp);
+        bio->bi_iter.bi_sector = sector;
+        bio->bi_iter.bi_size   = len << SECTOR_SHIFT;
 
-		sector += len;
-		nr_sects -= len;
-		cond_resched();
-	}
-	if (bio) {
-		ret = submit_bio_wait(bio);
-		bio_put(bio);
-	}
-	blk_finish_plug(&plug);
+        sector += len;
+        nr_sects -= len;
+        cond_resched();
+    }
+    if (bio)
+    {
+        ret = submit_bio_wait(bio);
+        bio_put(bio);
+    }
+    blk_finish_plug(&plug);
 
-	return ret;
+    return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_secure_erase);

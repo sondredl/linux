@@ -7,41 +7,42 @@
 #include <kunit/test.h>
 #include <linux/compiler.h>
 
-enum unsigned_enum {
-	constant_a = 3,
+enum unsigned_enum
+{
+    constant_a = 3,
 };
 
-enum signed_enum {
-	constant_b = -1,
-	constant_c = 2,
+enum signed_enum
+{
+    constant_b = -1,
+    constant_c = 2,
 };
 
 static void is_signed_type_test(struct kunit *test)
 {
-	KUNIT_EXPECT_EQ(test, is_signed_type(bool), false);
-	KUNIT_EXPECT_EQ(test, is_signed_type(signed char), true);
-	KUNIT_EXPECT_EQ(test, is_signed_type(unsigned char), false);
-	KUNIT_EXPECT_EQ(test, is_signed_type(char), false);
-	KUNIT_EXPECT_EQ(test, is_signed_type(int), true);
-	KUNIT_EXPECT_EQ(test, is_signed_type(unsigned int), false);
-	KUNIT_EXPECT_EQ(test, is_signed_type(long), true);
-	KUNIT_EXPECT_EQ(test, is_signed_type(unsigned long), false);
-	KUNIT_EXPECT_EQ(test, is_signed_type(long long), true);
-	KUNIT_EXPECT_EQ(test, is_signed_type(unsigned long long), false);
-	KUNIT_EXPECT_EQ(test, is_signed_type(enum unsigned_enum), false);
-	KUNIT_EXPECT_EQ(test, is_signed_type(enum signed_enum), true);
-	KUNIT_EXPECT_EQ(test, is_signed_type(void *), false);
-	KUNIT_EXPECT_EQ(test, is_signed_type(const char *), false);
+    KUNIT_EXPECT_EQ(test, is_signed_type(bool), false);
+    KUNIT_EXPECT_EQ(test, is_signed_type(signed char), true);
+    KUNIT_EXPECT_EQ(test, is_signed_type(unsigned char), false);
+    KUNIT_EXPECT_EQ(test, is_signed_type(char), false);
+    KUNIT_EXPECT_EQ(test, is_signed_type(int), true);
+    KUNIT_EXPECT_EQ(test, is_signed_type(unsigned int), false);
+    KUNIT_EXPECT_EQ(test, is_signed_type(long), true);
+    KUNIT_EXPECT_EQ(test, is_signed_type(unsigned long), false);
+    KUNIT_EXPECT_EQ(test, is_signed_type(long long), true);
+    KUNIT_EXPECT_EQ(test, is_signed_type(unsigned long long), false);
+    KUNIT_EXPECT_EQ(test, is_signed_type(enum unsigned_enum), false);
+    KUNIT_EXPECT_EQ(test, is_signed_type(enum signed_enum), true);
+    KUNIT_EXPECT_EQ(test, is_signed_type(void *), false);
+    KUNIT_EXPECT_EQ(test, is_signed_type(const char *), false);
 }
 
 static struct kunit_case is_signed_type_test_cases[] = {
-	KUNIT_CASE(is_signed_type_test),
-	{}
-};
+    KUNIT_CASE(is_signed_type_test),
+    {}};
 
 static struct kunit_suite is_signed_type_test_suite = {
-	.name = "is_signed_type",
-	.test_cases = is_signed_type_test_cases,
+    .name       = "is_signed_type",
+    .test_cases = is_signed_type_test_cases,
 };
 
 kunit_test_suite(is_signed_type_test_suite);

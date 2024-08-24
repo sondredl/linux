@@ -18,124 +18,124 @@
 #include "internal.h"
 
 static int __maybe_unused crypto_kpp_report(
-	struct sk_buff *skb, struct crypto_alg *alg)
+    struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_report_kpp rkpp;
+    struct crypto_report_kpp rkpp;
 
-	memset(&rkpp, 0, sizeof(rkpp));
+    memset(&rkpp, 0, sizeof(rkpp));
 
-	strscpy(rkpp.type, "kpp", sizeof(rkpp.type));
+    strscpy(rkpp.type, "kpp", sizeof(rkpp.type));
 
-	return nla_put(skb, CRYPTOCFGA_REPORT_KPP, sizeof(rkpp), &rkpp);
+    return nla_put(skb, CRYPTOCFGA_REPORT_KPP, sizeof(rkpp), &rkpp);
 }
 
 static void crypto_kpp_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
+    __maybe_unused;
 
 static void crypto_kpp_show(struct seq_file *m, struct crypto_alg *alg)
 {
-	seq_puts(m, "type         : kpp\n");
+    seq_puts(m, "type         : kpp\n");
 }
 
 static void crypto_kpp_exit_tfm(struct crypto_tfm *tfm)
 {
-	struct crypto_kpp *kpp = __crypto_kpp_tfm(tfm);
-	struct kpp_alg *alg = crypto_kpp_alg(kpp);
+    struct crypto_kpp *kpp = __crypto_kpp_tfm(tfm);
+    struct kpp_alg    *alg = crypto_kpp_alg(kpp);
 
-	alg->exit(kpp);
+    alg->exit(kpp);
 }
 
 static int crypto_kpp_init_tfm(struct crypto_tfm *tfm)
 {
-	struct crypto_kpp *kpp = __crypto_kpp_tfm(tfm);
-	struct kpp_alg *alg = crypto_kpp_alg(kpp);
+    struct crypto_kpp *kpp = __crypto_kpp_tfm(tfm);
+    struct kpp_alg    *alg = crypto_kpp_alg(kpp);
 
-	if (alg->exit)
-		kpp->base.exit = crypto_kpp_exit_tfm;
+    if (alg->exit)
+        kpp->base.exit = crypto_kpp_exit_tfm;
 
-	if (alg->init)
-		return alg->init(kpp);
+    if (alg->init)
+        return alg->init(kpp);
 
-	return 0;
+    return 0;
 }
 
 static void crypto_kpp_free_instance(struct crypto_instance *inst)
 {
-	struct kpp_instance *kpp = kpp_instance(inst);
+    struct kpp_instance *kpp = kpp_instance(inst);
 
-	kpp->free(kpp);
+    kpp->free(kpp);
 }
 
 static const struct crypto_type crypto_kpp_type = {
-	.extsize = crypto_alg_extsize,
-	.init_tfm = crypto_kpp_init_tfm,
-	.free = crypto_kpp_free_instance,
+    .extsize  = crypto_alg_extsize,
+    .init_tfm = crypto_kpp_init_tfm,
+    .free     = crypto_kpp_free_instance,
 #ifdef CONFIG_PROC_FS
-	.show = crypto_kpp_show,
+    .show = crypto_kpp_show,
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
-	.report = crypto_kpp_report,
+    .report = crypto_kpp_report,
 #endif
-	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
-	.maskset = CRYPTO_ALG_TYPE_MASK,
-	.type = CRYPTO_ALG_TYPE_KPP,
-	.tfmsize = offsetof(struct crypto_kpp, base),
+    .maskclear = ~CRYPTO_ALG_TYPE_MASK,
+    .maskset   = CRYPTO_ALG_TYPE_MASK,
+    .type      = CRYPTO_ALG_TYPE_KPP,
+    .tfmsize   = offsetof(struct crypto_kpp, base),
 };
 
 struct crypto_kpp *crypto_alloc_kpp(const char *alg_name, u32 type, u32 mask)
 {
-	return crypto_alloc_tfm(alg_name, &crypto_kpp_type, type, mask);
+    return crypto_alloc_tfm(alg_name, &crypto_kpp_type, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_kpp);
 
 int crypto_grab_kpp(struct crypto_kpp_spawn *spawn,
-		    struct crypto_instance *inst,
-		    const char *name, u32 type, u32 mask)
+                    struct crypto_instance  *inst,
+                    const char *name, u32 type, u32 mask)
 {
-	spawn->base.frontend = &crypto_kpp_type;
-	return crypto_grab_spawn(&spawn->base, inst, name, type, mask);
+    spawn->base.frontend = &crypto_kpp_type;
+    return crypto_grab_spawn(&spawn->base, inst, name, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_grab_kpp);
 
 int crypto_has_kpp(const char *alg_name, u32 type, u32 mask)
 {
-	return crypto_type_has_alg(alg_name, &crypto_kpp_type, type, mask);
+    return crypto_type_has_alg(alg_name, &crypto_kpp_type, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_has_kpp);
 
 static void kpp_prepare_alg(struct kpp_alg *alg)
 {
-	struct crypto_alg *base = &alg->base;
+    struct crypto_alg *base = &alg->base;
 
-	base->cra_type = &crypto_kpp_type;
-	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
-	base->cra_flags |= CRYPTO_ALG_TYPE_KPP;
+    base->cra_type = &crypto_kpp_type;
+    base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
+    base->cra_flags |= CRYPTO_ALG_TYPE_KPP;
 }
 
 int crypto_register_kpp(struct kpp_alg *alg)
 {
-	struct crypto_alg *base = &alg->base;
+    struct crypto_alg *base = &alg->base;
 
-	kpp_prepare_alg(alg);
-	return crypto_register_alg(base);
+    kpp_prepare_alg(alg);
+    return crypto_register_alg(base);
 }
 EXPORT_SYMBOL_GPL(crypto_register_kpp);
 
 void crypto_unregister_kpp(struct kpp_alg *alg)
 {
-	crypto_unregister_alg(&alg->base);
+    crypto_unregister_alg(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_kpp);
 
 int kpp_register_instance(struct crypto_template *tmpl,
-			  struct kpp_instance *inst)
+                          struct kpp_instance    *inst)
 {
-	if (WARN_ON(!inst->free))
-		return -EINVAL;
+    if (WARN_ON(!inst->free))
+        return -EINVAL;
 
-	kpp_prepare_alg(&inst->alg);
+    kpp_prepare_alg(&inst->alg);
 
-	return crypto_register_instance(tmpl, kpp_crypto_instance(inst));
+    return crypto_register_instance(tmpl, kpp_crypto_instance(inst));
 }
 EXPORT_SYMBOL_GPL(kpp_register_instance);
 

@@ -9,26 +9,25 @@
  */
 void **__memcat_p(void **a, void **b)
 {
-	void **p = a, **new;
-	int nr;
+    void **p = a, **new;
+    int    nr;
 
-	/* count the elements in both arrays */
-	for (nr = 0, p = a; *p; nr++, p++)
-		;
-	for (p = b; *p; nr++, p++)
-		;
-	/* one for the NULL-terminator */
-	nr++;
+    /* count the elements in both arrays */
+    for (nr = 0, p = a; *p; nr++, p++)
+        ;
+    for (p = b; *p; nr++, p++)
+        ;
+    /* one for the NULL-terminator */
+    nr++;
 
-	new = kmalloc_array(nr, sizeof(void *), GFP_KERNEL);
-	if (!new)
-		return NULL;
+    new = kmalloc_array(nr, sizeof(void *), GFP_KERNEL);
+    if (!new)
+        return NULL;
 
-	/* nr -> last index; p points to NULL in b[] */
-	for (nr--; nr >= 0; nr--, p = p == b ? &a[nr] : p - 1)
-		new[nr] = *p;
+    /* nr -> last index; p points to NULL in b[] */
+    for (nr--; nr >= 0; nr--, p = p == b ? &a[nr] : p - 1)
+        new[nr] = *p;
 
-	return new;
+    return new;
 }
 EXPORT_SYMBOL_GPL(__memcat_p);
-

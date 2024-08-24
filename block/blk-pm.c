@@ -28,10 +28,10 @@
  */
 void blk_pm_runtime_init(struct request_queue *q, struct device *dev)
 {
-	q->dev = dev;
-	q->rpm_status = RPM_ACTIVE;
-	pm_runtime_set_autosuspend_delay(q->dev, -1);
-	pm_runtime_use_autosuspend(q->dev);
+    q->dev        = dev;
+    q->rpm_status = RPM_ACTIVE;
+    pm_runtime_set_autosuspend_delay(q->dev, -1);
+    pm_runtime_use_autosuspend(q->dev);
 }
 EXPORT_SYMBOL(blk_pm_runtime_init);
 
@@ -58,49 +58,50 @@ EXPORT_SYMBOL(blk_pm_runtime_init);
  */
 int blk_pre_runtime_suspend(struct request_queue *q)
 {
-	int ret = 0;
+    int ret = 0;
 
-	if (!q->dev)
-		return ret;
+    if (!q->dev)
+        return ret;
 
-	WARN_ON_ONCE(q->rpm_status != RPM_ACTIVE);
+    WARN_ON_ONCE(q->rpm_status != RPM_ACTIVE);
 
-	spin_lock_irq(&q->queue_lock);
-	q->rpm_status = RPM_SUSPENDING;
-	spin_unlock_irq(&q->queue_lock);
+    spin_lock_irq(&q->queue_lock);
+    q->rpm_status = RPM_SUSPENDING;
+    spin_unlock_irq(&q->queue_lock);
 
-	/*
-	 * Increase the pm_only counter before checking whether any
-	 * non-PM blk_queue_enter() calls are in progress to avoid that any
-	 * new non-PM blk_queue_enter() calls succeed before the pm_only
-	 * counter is decreased again.
-	 */
-	blk_set_pm_only(q);
-	ret = -EBUSY;
-	/* Switch q_usage_counter from per-cpu to atomic mode. */
-	blk_freeze_queue_start(q);
-	/*
-	 * Wait until atomic mode has been reached. Since that
-	 * involves calling call_rcu(), it is guaranteed that later
-	 * blk_queue_enter() calls see the pm-only state. See also
-	 * http://lwn.net/Articles/573497/.
-	 */
-	percpu_ref_switch_to_atomic_sync(&q->q_usage_counter);
-	if (percpu_ref_is_zero(&q->q_usage_counter))
-		ret = 0;
-	/* Switch q_usage_counter back to per-cpu mode. */
-	blk_mq_unfreeze_queue(q);
+    /*
+     * Increase the pm_only counter before checking whether any
+     * non-PM blk_queue_enter() calls are in progress to avoid that any
+     * new non-PM blk_queue_enter() calls succeed before the pm_only
+     * counter is decreased again.
+     */
+    blk_set_pm_only(q);
+    ret = -EBUSY;
+    /* Switch q_usage_counter from per-cpu to atomic mode. */
+    blk_freeze_queue_start(q);
+    /*
+     * Wait until atomic mode has been reached. Since that
+     * involves calling call_rcu(), it is guaranteed that later
+     * blk_queue_enter() calls see the pm-only state. See also
+     * http://lwn.net/Articles/573497/.
+     */
+    percpu_ref_switch_to_atomic_sync(&q->q_usage_counter);
+    if (percpu_ref_is_zero(&q->q_usage_counter))
+        ret = 0;
+    /* Switch q_usage_counter back to per-cpu mode. */
+    blk_mq_unfreeze_queue(q);
 
-	if (ret < 0) {
-		spin_lock_irq(&q->queue_lock);
-		q->rpm_status = RPM_ACTIVE;
-		pm_runtime_mark_last_busy(q->dev);
-		spin_unlock_irq(&q->queue_lock);
+    if (ret < 0)
+    {
+        spin_lock_irq(&q->queue_lock);
+        q->rpm_status = RPM_ACTIVE;
+        pm_runtime_mark_last_busy(q->dev);
+        spin_unlock_irq(&q->queue_lock);
 
-		blk_clear_pm_only(q);
-	}
+        blk_clear_pm_only(q);
+    }
 
-	return ret;
+    return ret;
 }
 EXPORT_SYMBOL(blk_pre_runtime_suspend);
 
@@ -119,20 +120,23 @@ EXPORT_SYMBOL(blk_pre_runtime_suspend);
  */
 void blk_post_runtime_suspend(struct request_queue *q, int err)
 {
-	if (!q->dev)
-		return;
+    if (!q->dev)
+        return;
 
-	spin_lock_irq(&q->queue_lock);
-	if (!err) {
-		q->rpm_status = RPM_SUSPENDED;
-	} else {
-		q->rpm_status = RPM_ACTIVE;
-		pm_runtime_mark_last_busy(q->dev);
-	}
-	spin_unlock_irq(&q->queue_lock);
+    spin_lock_irq(&q->queue_lock);
+    if (!err)
+    {
+        q->rpm_status = RPM_SUSPENDED;
+    }
+    else
+    {
+        q->rpm_status = RPM_ACTIVE;
+        pm_runtime_mark_last_busy(q->dev);
+    }
+    spin_unlock_irq(&q->queue_lock);
 
-	if (err)
-		blk_clear_pm_only(q);
+    if (err)
+        blk_clear_pm_only(q);
 }
 EXPORT_SYMBOL(blk_post_runtime_suspend);
 
@@ -149,12 +153,12 @@ EXPORT_SYMBOL(blk_post_runtime_suspend);
  */
 void blk_pre_runtime_resume(struct request_queue *q)
 {
-	if (!q->dev)
-		return;
+    if (!q->dev)
+        return;
 
-	spin_lock_irq(&q->queue_lock);
-	q->rpm_status = RPM_RESUMING;
-	spin_unlock_irq(&q->queue_lock);
+    spin_lock_irq(&q->queue_lock);
+    q->rpm_status = RPM_RESUMING;
+    spin_unlock_irq(&q->queue_lock);
 }
 EXPORT_SYMBOL(blk_pre_runtime_resume);
 
@@ -173,19 +177,19 @@ EXPORT_SYMBOL(blk_pre_runtime_resume);
  */
 void blk_post_runtime_resume(struct request_queue *q)
 {
-	int old_status;
+    int old_status;
 
-	if (!q->dev)
-		return;
+    if (!q->dev)
+        return;
 
-	spin_lock_irq(&q->queue_lock);
-	old_status = q->rpm_status;
-	q->rpm_status = RPM_ACTIVE;
-	pm_runtime_mark_last_busy(q->dev);
-	pm_request_autosuspend(q->dev);
-	spin_unlock_irq(&q->queue_lock);
+    spin_lock_irq(&q->queue_lock);
+    old_status    = q->rpm_status;
+    q->rpm_status = RPM_ACTIVE;
+    pm_runtime_mark_last_busy(q->dev);
+    pm_request_autosuspend(q->dev);
+    spin_unlock_irq(&q->queue_lock);
 
-	if (old_status != RPM_ACTIVE)
-		blk_clear_pm_only(q);
+    if (old_status != RPM_ACTIVE)
+        blk_clear_pm_only(q);
 }
 EXPORT_SYMBOL(blk_post_runtime_resume);

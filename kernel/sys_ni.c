@@ -6,8 +6,8 @@
 #include <asm/unistd.h>
 
 #ifdef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
-/* Architectures may override COND_SYSCALL and COND_SYSCALL_COMPAT */
-#include <asm/syscall_wrapper.h>
+    /* Architectures may override COND_SYSCALL and COND_SYSCALL_COMPAT */
+    #include <asm/syscall_wrapper.h>
 #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
 /*  we can't #include <linux/syscalls.h> here,
@@ -19,15 +19,15 @@ asmlinkage long sys_ni_syscall(void);
  */
 asmlinkage long sys_ni_syscall(void)
 {
-	return -ENOSYS;
+    return -ENOSYS;
 }
 
 #ifndef COND_SYSCALL
-#define COND_SYSCALL(name) cond_syscall(sys_##name)
+    #define COND_SYSCALL(name) cond_syscall(sys_##name)
 #endif /* COND_SYSCALL */
 
 #ifndef COND_SYSCALL_COMPAT
-#define COND_SYSCALL_COMPAT(name) cond_syscall(compat_sys_##name)
+    #define COND_SYSCALL_COMPAT(name) cond_syscall(compat_sys_##name)
 #endif /* COND_SYSCALL_COMPAT */
 
 /*
@@ -306,7 +306,6 @@ COND_SYSCALL(rtas);
 COND_SYSCALL(spu_run);
 COND_SYSCALL(spu_create);
 COND_SYSCALL(subpage_prot);
-
 
 /*
  * Deprecated system calls which are still defined in

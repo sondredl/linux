@@ -10,40 +10,41 @@
 
 #include <asm/page.h>
 #ifdef CONFIG_MIPS
-#include <asm/bootinfo.h>
+    #include <asm/bootinfo.h>
 #endif
 
-struct foo {
-	unsigned int bar;
+struct foo
+{
+    unsigned int bar;
 };
 
 static struct foo *foo;
 
 static int __init test_debug_virtual_init(void)
 {
-	phys_addr_t pa;
-	void *va;
+    phys_addr_t pa;
+    void       *va;
 
-	va = (void *)VMALLOC_START;
-	pa = virt_to_phys(va);
+    va = (void *)VMALLOC_START;
+    pa = virt_to_phys(va);
 
-	pr_info("PA: %pa for VA: 0x%lx\n", &pa, (unsigned long)va);
+    pr_info("PA: %pa for VA: 0x%lx\n", &pa, (unsigned long)va);
 
-	foo = kzalloc(sizeof(*foo), GFP_KERNEL);
-	if (!foo)
-		return -ENOMEM;
+    foo = kzalloc(sizeof(*foo), GFP_KERNEL);
+    if (!foo)
+        return -ENOMEM;
 
-	pa = virt_to_phys(foo);
-	va = foo;
-	pr_info("PA: %pa for VA: 0x%lx\n", &pa, (unsigned long)va);
+    pa = virt_to_phys(foo);
+    va = foo;
+    pr_info("PA: %pa for VA: 0x%lx\n", &pa, (unsigned long)va);
 
-	return 0;
+    return 0;
 }
 module_init(test_debug_virtual_init);
 
 static void __exit test_debug_virtual_exit(void)
 {
-	kfree(foo);
+    kfree(foo);
 }
 module_exit(test_debug_virtual_exit);
 

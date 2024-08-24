@@ -31,20 +31,21 @@
  *
  * See also <linux/ioprio.h>.
  */
-enum prio_policy {
-	POLICY_NO_CHANGE	= 0,
-	POLICY_PROMOTE_TO_RT	= 1,
-	POLICY_RESTRICT_TO_BE	= 2,
-	POLICY_ALL_TO_IDLE	= 3,
-	POLICY_NONE_TO_RT	= 4,
+enum prio_policy
+{
+    POLICY_NO_CHANGE      = 0,
+    POLICY_PROMOTE_TO_RT  = 1,
+    POLICY_RESTRICT_TO_BE = 2,
+    POLICY_ALL_TO_IDLE    = 3,
+    POLICY_NONE_TO_RT     = 4,
 };
 
 static const char *policy_name[] = {
-	[POLICY_NO_CHANGE]	= "no-change",
-	[POLICY_PROMOTE_TO_RT]	= "promote-to-rt",
-	[POLICY_RESTRICT_TO_BE]	= "restrict-to-be",
-	[POLICY_ALL_TO_IDLE]	= "idle",
-	[POLICY_NONE_TO_RT]	= "none-to-rt",
+    [POLICY_NO_CHANGE]      = "no-change",
+    [POLICY_PROMOTE_TO_RT]  = "promote-to-rt",
+    [POLICY_RESTRICT_TO_BE] = "restrict-to-be",
+    [POLICY_ALL_TO_IDLE]    = "idle",
+    [POLICY_NONE_TO_RT]     = "none-to-rt",
 };
 
 static struct blkcg_policy ioprio_policy;
@@ -53,8 +54,9 @@ static struct blkcg_policy ioprio_policy;
  * struct ioprio_blkg - Per (cgroup, request queue) data.
  * @pd: blkg_policy_data structure.
  */
-struct ioprio_blkg {
-	struct blkg_policy_data pd;
+struct ioprio_blkg
+{
+    struct blkg_policy_data pd;
 };
 
 /**
@@ -62,181 +64,181 @@ struct ioprio_blkg {
  * @cpd: blkcg_policy_data structure.
  * @prio_policy: One of the IOPRIO_CLASS_* values. See also <linux/ioprio.h>.
  */
-struct ioprio_blkcg {
-	struct blkcg_policy_data cpd;
-	enum prio_policy	 prio_policy;
+struct ioprio_blkcg
+{
+    struct blkcg_policy_data cpd;
+    enum prio_policy         prio_policy;
 };
 
 static inline struct ioprio_blkg *pd_to_ioprio(struct blkg_policy_data *pd)
 {
-	return pd ? container_of(pd, struct ioprio_blkg, pd) : NULL;
+    return pd ? container_of(pd, struct ioprio_blkg, pd) : NULL;
 }
 
 static struct ioprio_blkcg *blkcg_to_ioprio_blkcg(struct blkcg *blkcg)
 {
-	return container_of(blkcg_to_cpd(blkcg, &ioprio_policy),
-			    struct ioprio_blkcg, cpd);
+    return container_of(blkcg_to_cpd(blkcg, &ioprio_policy),
+                        struct ioprio_blkcg, cpd);
 }
 
 static struct ioprio_blkcg *
-ioprio_blkcg_from_css(struct cgroup_subsys_state *css)
+    ioprio_blkcg_from_css(struct cgroup_subsys_state *css)
 {
-	return blkcg_to_ioprio_blkcg(css_to_blkcg(css));
+    return blkcg_to_ioprio_blkcg(css_to_blkcg(css));
 }
 
 static struct ioprio_blkcg *ioprio_blkcg_from_bio(struct bio *bio)
 {
-	struct blkg_policy_data *pd = blkg_to_pd(bio->bi_blkg, &ioprio_policy);
+    struct blkg_policy_data *pd = blkg_to_pd(bio->bi_blkg, &ioprio_policy);
 
-	if (!pd)
-		return NULL;
+    if (!pd)
+        return NULL;
 
-	return blkcg_to_ioprio_blkcg(pd->blkg->blkcg);
+    return blkcg_to_ioprio_blkcg(pd->blkg->blkcg);
 }
 
 static int ioprio_show_prio_policy(struct seq_file *sf, void *v)
 {
-	struct ioprio_blkcg *blkcg = ioprio_blkcg_from_css(seq_css(sf));
+    struct ioprio_blkcg *blkcg = ioprio_blkcg_from_css(seq_css(sf));
 
-	seq_printf(sf, "%s\n", policy_name[blkcg->prio_policy]);
-	return 0;
+    seq_printf(sf, "%s\n", policy_name[blkcg->prio_policy]);
+    return 0;
 }
 
 static ssize_t ioprio_set_prio_policy(struct kernfs_open_file *of, char *buf,
-				      size_t nbytes, loff_t off)
+                                      size_t nbytes, loff_t off)
 {
-	struct ioprio_blkcg *blkcg = ioprio_blkcg_from_css(of_css(of));
-	int ret;
+    struct ioprio_blkcg *blkcg = ioprio_blkcg_from_css(of_css(of));
+    int                  ret;
 
-	if (off != 0)
-		return -EIO;
-	/* kernfs_fop_write_iter() terminates 'buf' with '\0'. */
-	ret = sysfs_match_string(policy_name, buf);
-	if (ret < 0)
-		return ret;
-	blkcg->prio_policy = ret;
-	return nbytes;
+    if (off != 0)
+        return -EIO;
+    /* kernfs_fop_write_iter() terminates 'buf' with '\0'. */
+    ret = sysfs_match_string(policy_name, buf);
+    if (ret < 0)
+        return ret;
+    blkcg->prio_policy = ret;
+    return nbytes;
 }
 
 static struct blkg_policy_data *
-ioprio_alloc_pd(struct gendisk *disk, struct blkcg *blkcg, gfp_t gfp)
+    ioprio_alloc_pd(struct gendisk *disk, struct blkcg *blkcg, gfp_t gfp)
 {
-	struct ioprio_blkg *ioprio_blkg;
+    struct ioprio_blkg *ioprio_blkg;
 
-	ioprio_blkg = kzalloc(sizeof(*ioprio_blkg), gfp);
-	if (!ioprio_blkg)
-		return NULL;
+    ioprio_blkg = kzalloc(sizeof(*ioprio_blkg), gfp);
+    if (!ioprio_blkg)
+        return NULL;
 
-	return &ioprio_blkg->pd;
+    return &ioprio_blkg->pd;
 }
 
 static void ioprio_free_pd(struct blkg_policy_data *pd)
 {
-	struct ioprio_blkg *ioprio_blkg = pd_to_ioprio(pd);
+    struct ioprio_blkg *ioprio_blkg = pd_to_ioprio(pd);
 
-	kfree(ioprio_blkg);
+    kfree(ioprio_blkg);
 }
 
 static struct blkcg_policy_data *ioprio_alloc_cpd(gfp_t gfp)
 {
-	struct ioprio_blkcg *blkcg;
+    struct ioprio_blkcg *blkcg;
 
-	blkcg = kzalloc(sizeof(*blkcg), gfp);
-	if (!blkcg)
-		return NULL;
-	blkcg->prio_policy = POLICY_NO_CHANGE;
-	return &blkcg->cpd;
+    blkcg = kzalloc(sizeof(*blkcg), gfp);
+    if (!blkcg)
+        return NULL;
+    blkcg->prio_policy = POLICY_NO_CHANGE;
+    return &blkcg->cpd;
 }
 
 static void ioprio_free_cpd(struct blkcg_policy_data *cpd)
 {
-	struct ioprio_blkcg *blkcg = container_of(cpd, typeof(*blkcg), cpd);
+    struct ioprio_blkcg *blkcg = container_of(cpd, typeof(*blkcg), cpd);
 
-	kfree(blkcg);
+    kfree(blkcg);
 }
 
-#define IOPRIO_ATTRS						\
-	{							\
-		.name		= "prio.class",			\
-		.seq_show	= ioprio_show_prio_policy,	\
-		.write		= ioprio_set_prio_policy,	\
-	},							\
-	{ } /* sentinel */
+#define IOPRIO_ATTRS                         \
+    {                                        \
+        .name     = "prio.class",            \
+        .seq_show = ioprio_show_prio_policy, \
+        .write    = ioprio_set_prio_policy,  \
+    },                                       \
+    {                                        \
+    } /* sentinel */
 
 /* cgroup v2 attributes */
 static struct cftype ioprio_files[] = {
-	IOPRIO_ATTRS
-};
+    IOPRIO_ATTRS};
 
 /* cgroup v1 attributes */
 static struct cftype ioprio_legacy_files[] = {
-	IOPRIO_ATTRS
-};
+    IOPRIO_ATTRS};
 
 static struct blkcg_policy ioprio_policy = {
-	.dfl_cftypes	= ioprio_files,
-	.legacy_cftypes = ioprio_legacy_files,
+    .dfl_cftypes    = ioprio_files,
+    .legacy_cftypes = ioprio_legacy_files,
 
-	.cpd_alloc_fn	= ioprio_alloc_cpd,
-	.cpd_free_fn	= ioprio_free_cpd,
+    .cpd_alloc_fn = ioprio_alloc_cpd,
+    .cpd_free_fn  = ioprio_free_cpd,
 
-	.pd_alloc_fn	= ioprio_alloc_pd,
-	.pd_free_fn	= ioprio_free_pd,
+    .pd_alloc_fn = ioprio_alloc_pd,
+    .pd_free_fn  = ioprio_free_pd,
 };
 
 void blkcg_set_ioprio(struct bio *bio)
 {
-	struct ioprio_blkcg *blkcg = ioprio_blkcg_from_bio(bio);
-	u16 prio;
+    struct ioprio_blkcg *blkcg = ioprio_blkcg_from_bio(bio);
+    u16                  prio;
 
-	if (!blkcg || blkcg->prio_policy == POLICY_NO_CHANGE)
-		return;
+    if (!blkcg || blkcg->prio_policy == POLICY_NO_CHANGE)
+        return;
 
-	if (blkcg->prio_policy == POLICY_PROMOTE_TO_RT ||
-	    blkcg->prio_policy == POLICY_NONE_TO_RT) {
-		/*
-		 * For RT threads, the default priority level is 4 because
-		 * task_nice is 0. By promoting non-RT io-priority to RT-class
-		 * and default level 4, those requests that are already
-		 * RT-class but need a higher io-priority can use ioprio_set()
-		 * to achieve this.
-		 */
-		if (IOPRIO_PRIO_CLASS(bio->bi_ioprio) != IOPRIO_CLASS_RT)
-			bio->bi_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_RT, 4);
-		return;
-	}
+    if (blkcg->prio_policy == POLICY_PROMOTE_TO_RT || blkcg->prio_policy == POLICY_NONE_TO_RT)
+    {
+        /*
+         * For RT threads, the default priority level is 4 because
+         * task_nice is 0. By promoting non-RT io-priority to RT-class
+         * and default level 4, those requests that are already
+         * RT-class but need a higher io-priority can use ioprio_set()
+         * to achieve this.
+         */
+        if (IOPRIO_PRIO_CLASS(bio->bi_ioprio) != IOPRIO_CLASS_RT)
+            bio->bi_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_RT, 4);
+        return;
+    }
 
-	/*
-	 * Except for IOPRIO_CLASS_NONE, higher I/O priority numbers
-	 * correspond to a lower priority. Hence, the max_t() below selects
-	 * the lower priority of bi_ioprio and the cgroup I/O priority class.
-	 * If the bio I/O priority equals IOPRIO_CLASS_NONE, the cgroup I/O
-	 * priority is assigned to the bio.
-	 */
-	prio = max_t(u16, bio->bi_ioprio,
-			IOPRIO_PRIO_VALUE(blkcg->prio_policy, 0));
-	if (prio > bio->bi_ioprio)
-		bio->bi_ioprio = prio;
+    /*
+     * Except for IOPRIO_CLASS_NONE, higher I/O priority numbers
+     * correspond to a lower priority. Hence, the max_t() below selects
+     * the lower priority of bi_ioprio and the cgroup I/O priority class.
+     * If the bio I/O priority equals IOPRIO_CLASS_NONE, the cgroup I/O
+     * priority is assigned to the bio.
+     */
+    prio = max_t(u16, bio->bi_ioprio,
+                 IOPRIO_PRIO_VALUE(blkcg->prio_policy, 0));
+    if (prio > bio->bi_ioprio)
+        bio->bi_ioprio = prio;
 }
 
 void blk_ioprio_exit(struct gendisk *disk)
 {
-	blkcg_deactivate_policy(disk, &ioprio_policy);
+    blkcg_deactivate_policy(disk, &ioprio_policy);
 }
 
 int blk_ioprio_init(struct gendisk *disk)
 {
-	return blkcg_activate_policy(disk, &ioprio_policy);
+    return blkcg_activate_policy(disk, &ioprio_policy);
 }
 
 static int __init ioprio_init(void)
 {
-	return blkcg_policy_register(&ioprio_policy);
+    return blkcg_policy_register(&ioprio_policy);
 }
 
 static void __exit ioprio_exit(void)
 {
-	blkcg_policy_unregister(&ioprio_policy);
+    blkcg_policy_unregister(&ioprio_policy);
 }
 
 module_init(ioprio_init);

@@ -20,8 +20,6 @@
 #include <linux/init.h>
 #include <asm/dma.h>
 
-
-
 /* A note on resource allocation:
  *
  * All drivers needing DMA channels, should allocate and release them
@@ -37,7 +35,6 @@
  * in the kernel.
  */
 
-
 DEFINE_SPINLOCK(dma_spin_lock);
 
 /*
@@ -46,39 +43,38 @@ DEFINE_SPINLOCK(dma_spin_lock);
 
 #ifdef MAX_DMA_CHANNELS
 
-
 /* Channel n is busy iff dma_chan_busy[n].lock != 0.
  * DMA0 used to be reserved for DRAM refresh, but apparently not any more...
  * DMA4 is reserved for cascading.
  */
 
-struct dma_chan {
-	int  lock;
-	const char *device_id;
+struct dma_chan
+{
+    int         lock;
+    const char *device_id;
 };
 
 static struct dma_chan dma_chan_busy[MAX_DMA_CHANNELS] = {
-	[4] = { 1, "cascade" },
+    [4] = {1, "cascade"},
 };
-
 
 /**
  * request_dma - request and reserve a system DMA channel
  * @dmanr: DMA channel number
  * @device_id: reserving device ID string, used in /proc/dma
  */
-int request_dma(unsigned int dmanr, const char * device_id)
+int request_dma(unsigned int dmanr, const char *device_id)
 {
-	if (dmanr >= MAX_DMA_CHANNELS)
-		return -EINVAL;
+    if (dmanr >= MAX_DMA_CHANNELS)
+        return -EINVAL;
 
-	if (xchg(&dma_chan_busy[dmanr].lock, 1) != 0)
-		return -EBUSY;
+    if (xchg(&dma_chan_busy[dmanr].lock, 1) != 0)
+        return -EBUSY;
 
-	dma_chan_busy[dmanr].device_id = device_id;
+    dma_chan_busy[dmanr].device_id = device_id;
 
-	/* old flag was 0, now contains 1 to indicate busy */
-	return 0;
+    /* old flag was 0, now contains 1 to indicate busy */
+    return 0;
 } /* request_dma */
 
 /**
@@ -87,15 +83,17 @@ int request_dma(unsigned int dmanr, const char * device_id)
  */
 void free_dma(unsigned int dmanr)
 {
-	if (dmanr >= MAX_DMA_CHANNELS) {
-		printk(KERN_WARNING "Trying to free DMA%d\n", dmanr);
-		return;
-	}
+    if (dmanr >= MAX_DMA_CHANNELS)
+    {
+        printk(KERN_WARNING "Trying to free DMA%d\n", dmanr);
+        return;
+    }
 
-	if (xchg(&dma_chan_busy[dmanr].lock, 0) == 0) {
-		printk(KERN_WARNING "Trying to free free DMA%d\n", dmanr);
-		return;
-	}
+    if (xchg(&dma_chan_busy[dmanr].lock, 0) == 0)
+    {
+        printk(KERN_WARNING "Trying to free free DMA%d\n", dmanr);
+        return;
+    }
 
 } /* free_dma */
 
@@ -103,7 +101,7 @@ void free_dma(unsigned int dmanr)
 
 int request_dma(unsigned int dmanr, const char *device_id)
 {
-	return -EINVAL;
+    return -EINVAL;
 }
 
 void free_dma(unsigned int dmanr)
@@ -114,31 +112,33 @@ void free_dma(unsigned int dmanr)
 
 #ifdef CONFIG_PROC_FS
 
-#ifdef MAX_DMA_CHANNELS
+    #ifdef MAX_DMA_CHANNELS
 static int proc_dma_show(struct seq_file *m, void *v)
 {
-	int i;
+    int i;
 
-	for (i = 0 ; i < MAX_DMA_CHANNELS ; i++) {
-		if (dma_chan_busy[i].lock) {
-			seq_printf(m, "%2d: %s\n", i,
-				   dma_chan_busy[i].device_id);
-		}
-	}
-	return 0;
+    for (i = 0; i < MAX_DMA_CHANNELS; i++)
+    {
+        if (dma_chan_busy[i].lock)
+        {
+            seq_printf(m, "%2d: %s\n", i,
+                       dma_chan_busy[i].device_id);
+        }
+    }
+    return 0;
 }
-#else
+    #else
 static int proc_dma_show(struct seq_file *m, void *v)
 {
-	seq_puts(m, "No DMA\n");
-	return 0;
+    seq_puts(m, "No DMA\n");
+    return 0;
 }
-#endif /* MAX_DMA_CHANNELS */
+    #endif /* MAX_DMA_CHANNELS */
 
 static int __init proc_dma_init(void)
 {
-	proc_create_single("dma", 0, NULL, proc_dma_show);
-	return 0;
+    proc_create_single("dma", 0, NULL, proc_dma_show);
+    return 0;
 }
 
 __initcall(proc_dma_init);

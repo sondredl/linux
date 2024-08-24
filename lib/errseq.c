@@ -34,13 +34,13 @@
  */
 
 /* The low bits are designated for error code (max of MAX_ERRNO) */
-#define ERRSEQ_SHIFT		ilog2(MAX_ERRNO + 1)
+#define ERRSEQ_SHIFT ilog2(MAX_ERRNO + 1)
 
 /* This bit is used as a flag to indicate whether the value has been seen */
-#define ERRSEQ_SEEN		(1 << ERRSEQ_SHIFT)
+#define ERRSEQ_SEEN (1 << ERRSEQ_SHIFT)
 
 /* The lowest bit of the counter */
-#define ERRSEQ_CTR_INC		(1 << (ERRSEQ_SHIFT + 1))
+#define ERRSEQ_CTR_INC (1 << (ERRSEQ_SHIFT + 1))
 
 /**
  * errseq_set - set a errseq_t for later reporting
@@ -58,53 +58,55 @@
  */
 errseq_t errseq_set(errseq_t *eseq, int err)
 {
-	errseq_t cur, old;
+    errseq_t cur, old;
 
-	/* MAX_ERRNO must be able to serve as a mask */
-	BUILD_BUG_ON_NOT_POWER_OF_2(MAX_ERRNO + 1);
+    /* MAX_ERRNO must be able to serve as a mask */
+    BUILD_BUG_ON_NOT_POWER_OF_2(MAX_ERRNO + 1);
 
-	/*
-	 * Ensure the error code actually fits where we want it to go. If it
-	 * doesn't then just throw a warning and don't record anything. We
-	 * also don't accept zero here as that would effectively clear a
-	 * previous error.
-	 */
-	old = READ_ONCE(*eseq);
+    /*
+     * Ensure the error code actually fits where we want it to go. If it
+     * doesn't then just throw a warning and don't record anything. We
+     * also don't accept zero here as that would effectively clear a
+     * previous error.
+     */
+    old = READ_ONCE(*eseq);
 
-	if (WARN(unlikely(err == 0 || (unsigned int)-err > MAX_ERRNO),
-				"err = %d\n", err))
-		return old;
+    if (WARN(unlikely(err == 0 || (unsigned int)-err > MAX_ERRNO),
+             "err = %d\n", err))
+        return old;
 
-	for (;;) {
-		errseq_t new;
+    for (;;)
+    {
+        errseq_t new;
 
-		/* Clear out error bits and set new error */
-		new = (old & ~(MAX_ERRNO|ERRSEQ_SEEN)) | -err;
+        /* Clear out error bits and set new error */
+        new = (old & ~(MAX_ERRNO | ERRSEQ_SEEN)) | -err;
 
-		/* Only increment if someone has looked at it */
-		if (old & ERRSEQ_SEEN)
-			new += ERRSEQ_CTR_INC;
+        /* Only increment if someone has looked at it */
+        if (old & ERRSEQ_SEEN)
+            new += ERRSEQ_CTR_INC;
 
-		/* If there would be no change, then call it done */
-		if (new == old) {
-			cur = new;
-			break;
-		}
+        /* If there would be no change, then call it done */
+        if (new == old)
+        {
+            cur = new;
+            break;
+        }
 
-		/* Try to swap the new value into place */
-		cur = cmpxchg(eseq, old, new);
+        /* Try to swap the new value into place */
+        cur = cmpxchg(eseq, old, new);
 
-		/*
-		 * Call it success if we did the swap or someone else beat us
-		 * to it for the same value.
-		 */
-		if (likely(cur == old || cur == new))
-			break;
+        /*
+         * Call it success if we did the swap or someone else beat us
+         * to it for the same value.
+         */
+        if (likely(cur == old || cur == new))
+            break;
 
-		/* Raced with an update, try again */
-		old = cur;
-	}
-	return cur;
+        /* Raced with an update, try again */
+        old = cur;
+    }
+    return cur;
 }
 EXPORT_SYMBOL(errseq_set);
 
@@ -122,12 +124,12 @@ EXPORT_SYMBOL(errseq_set);
  */
 errseq_t errseq_sample(errseq_t *eseq)
 {
-	errseq_t old = READ_ONCE(*eseq);
+    errseq_t old = READ_ONCE(*eseq);
 
-	/* If nobody has seen this error yet, then we can be the first. */
-	if (!(old & ERRSEQ_SEEN))
-		old = 0;
-	return old;
+    /* If nobody has seen this error yet, then we can be the first. */
+    if (!(old & ERRSEQ_SEEN))
+        old = 0;
+    return old;
 }
 EXPORT_SYMBOL(errseq_sample);
 
@@ -144,11 +146,11 @@ EXPORT_SYMBOL(errseq_sample);
  */
 int errseq_check(errseq_t *eseq, errseq_t since)
 {
-	errseq_t cur = READ_ONCE(*eseq);
+    errseq_t cur = READ_ONCE(*eseq);
 
-	if (likely(cur == since))
-		return 0;
-	return -(cur & MAX_ERRNO);
+    if (likely(cur == since))
+        return 0;
+    return -(cur & MAX_ERRNO);
 }
 EXPORT_SYMBOL(errseq_check);
 
@@ -174,34 +176,35 @@ EXPORT_SYMBOL(errseq_check);
  */
 int errseq_check_and_advance(errseq_t *eseq, errseq_t *since)
 {
-	int err = 0;
-	errseq_t old, new;
+    int      err = 0;
+    errseq_t old, new;
 
-	/*
-	 * Most callers will want to use the inline wrapper to check this,
-	 * so that the common case of no error is handled without needing
-	 * to take the lock that protects the "since" value.
-	 */
-	old = READ_ONCE(*eseq);
-	if (old != *since) {
-		/*
-		 * Set the flag and try to swap it into place if it has
-		 * changed.
-		 *
-		 * We don't care about the outcome of the swap here. If the
-		 * swap doesn't occur, then it has either been updated by a
-		 * writer who is altering the value in some way (updating
-		 * counter or resetting the error), or another reader who is
-		 * just setting the "seen" flag. Either outcome is OK, and we
-		 * can advance "since" and return an error based on what we
-		 * have.
-		 */
-		new = old | ERRSEQ_SEEN;
-		if (new != old)
-			cmpxchg(eseq, old, new);
-		*since = new;
-		err = -(new & MAX_ERRNO);
-	}
-	return err;
+    /*
+     * Most callers will want to use the inline wrapper to check this,
+     * so that the common case of no error is handled without needing
+     * to take the lock that protects the "since" value.
+     */
+    old = READ_ONCE(*eseq);
+    if (old != *since)
+    {
+        /*
+         * Set the flag and try to swap it into place if it has
+         * changed.
+         *
+         * We don't care about the outcome of the swap here. If the
+         * swap doesn't occur, then it has either been updated by a
+         * writer who is altering the value in some way (updating
+         * counter or resetting the error), or another reader who is
+         * just setting the "seen" flag. Either outcome is OK, and we
+         * can advance "since" and return an error based on what we
+         * have.
+         */
+        new = old | ERRSEQ_SEEN;
+        if (new != old)
+            cmpxchg(eseq, old, new);
+        *since = new;
+        err    = -(new &MAX_ERRNO);
+    }
+    return err;
 }
 EXPORT_SYMBOL(errseq_check_and_advance);

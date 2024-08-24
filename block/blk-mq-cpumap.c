@@ -17,21 +17,23 @@
 
 void blk_mq_map_queues(struct blk_mq_queue_map *qmap)
 {
-	const struct cpumask *masks;
-	unsigned int queue, cpu;
+    const struct cpumask *masks;
+    unsigned int          queue, cpu;
 
-	masks = group_cpus_evenly(qmap->nr_queues);
-	if (!masks) {
-		for_each_possible_cpu(cpu)
-			qmap->mq_map[cpu] = qmap->queue_offset;
-		return;
-	}
+    masks = group_cpus_evenly(qmap->nr_queues);
+    if (!masks)
+    {
+        for_each_possible_cpu(cpu)
+            qmap->mq_map[cpu] = qmap->queue_offset;
+        return;
+    }
 
-	for (queue = 0; queue < qmap->nr_queues; queue++) {
-		for_each_cpu(cpu, &masks[queue])
-			qmap->mq_map[cpu] = qmap->queue_offset + queue;
-	}
-	kfree(masks);
+    for (queue = 0; queue < qmap->nr_queues; queue++)
+    {
+        for_each_cpu(cpu, &masks[queue])
+            qmap->mq_map[cpu] = qmap->queue_offset + queue;
+    }
+    kfree(masks);
 }
 EXPORT_SYMBOL_GPL(blk_mq_map_queues);
 
@@ -45,12 +47,13 @@ EXPORT_SYMBOL_GPL(blk_mq_map_queues);
  */
 int blk_mq_hw_queue_to_node(struct blk_mq_queue_map *qmap, unsigned int index)
 {
-	int i;
+    int i;
 
-	for_each_possible_cpu(i) {
-		if (index == qmap->mq_map[i])
-			return cpu_to_node(i);
-	}
+    for_each_possible_cpu(i)
+    {
+        if (index == qmap->mq_map[i])
+            return cpu_to_node(i);
+    }
 
-	return NUMA_NO_NODE;
+    return NUMA_NO_NODE;
 }

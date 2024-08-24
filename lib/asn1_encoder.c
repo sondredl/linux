@@ -21,111 +21,119 @@
  * negative case if a use comes along.
  */
 unsigned char *
-asn1_encode_integer(unsigned char *data, const unsigned char *end_data,
-		    s64 integer)
+    asn1_encode_integer(unsigned char *data, const unsigned char *end_data,
+                        s64 integer)
 {
-	int data_len = end_data - data;
-	unsigned char *d = &data[2];
-	bool found = false;
-	int i;
+    int            data_len = end_data - data;
+    unsigned char *d        = &data[2];
+    bool           found    = false;
+    int            i;
 
-	if (WARN(integer < 0,
-		 "BUG: integer encode only supports positive integers"))
-		return ERR_PTR(-EINVAL);
+    if (WARN(integer < 0,
+             "BUG: integer encode only supports positive integers"))
+        return ERR_PTR(-EINVAL);
 
-	if (IS_ERR(data))
-		return data;
+    if (IS_ERR(data))
+        return data;
 
-	/* need at least 3 bytes for tag, length and integer encoding */
-	if (data_len < 3)
-		return ERR_PTR(-EINVAL);
+    /* need at least 3 bytes for tag, length and integer encoding */
+    if (data_len < 3)
+        return ERR_PTR(-EINVAL);
 
-	/* remaining length where at d (the start of the integer encoding) */
-	data_len -= 2;
+    /* remaining length where at d (the start of the integer encoding) */
+    data_len -= 2;
 
-	data[0] = _tag(UNIV, PRIM, INT);
-	if (integer == 0) {
-		*d++ = 0;
-		goto out;
-	}
+    data[0] = _tag(UNIV, PRIM, INT);
+    if (integer == 0)
+    {
+        *d++ = 0;
+        goto out;
+    }
 
-	for (i = sizeof(integer); i > 0 ; i--) {
-		int byte = integer >> (8 * (i - 1));
+    for (i = sizeof(integer); i > 0; i--)
+    {
+        int byte = integer >> (8 * (i - 1));
 
-		if (!found && byte == 0)
-			continue;
+        if (!found && byte == 0)
+            continue;
 
-		/*
-		 * for a positive number the first byte must have bit
-		 * 7 clear in two's complement (otherwise it's a
-		 * negative number) so prepend a leading zero if
-		 * that's not the case
-		 */
-		if (!found && (byte & 0x80)) {
-			/*
-			 * no check needed here, we already know we
-			 * have len >= 1
-			 */
-			*d++ = 0;
-			data_len--;
-		}
+        /*
+         * for a positive number the first byte must have bit
+         * 7 clear in two's complement (otherwise it's a
+         * negative number) so prepend a leading zero if
+         * that's not the case
+         */
+        if (!found && (byte & 0x80))
+        {
+            /*
+             * no check needed here, we already know we
+             * have len >= 1
+             */
+            *d++ = 0;
+            data_len--;
+        }
 
-		found = true;
-		if (data_len == 0)
-			return ERR_PTR(-EINVAL);
+        found = true;
+        if (data_len == 0)
+            return ERR_PTR(-EINVAL);
 
-		*d++ = byte;
-		data_len--;
-	}
+        *d++ = byte;
+        data_len--;
+    }
 
- out:
-	data[1] = d - data - 2;
+out:
+    data[1] = d - data - 2;
 
-	return d;
+    return d;
 }
 EXPORT_SYMBOL_GPL(asn1_encode_integer);
 
 /* calculate the base 128 digit values setting the top bit of the first octet */
 static int asn1_encode_oid_digit(unsigned char **_data, int *data_len, u32 oid)
 {
-	unsigned char *data = *_data;
-	int start = 7 + 7 + 7 + 7;
-	int ret = 0;
+    unsigned char *data  = *_data;
+    int            start = 7 + 7 + 7 + 7;
+    int            ret   = 0;
 
-	if (*data_len < 1)
-		return -EINVAL;
+    if (*data_len < 1)
+        return -EINVAL;
 
-	/* quick case */
-	if (oid == 0) {
-		*data++ = 0x80;
-		(*data_len)--;
-		goto out;
-	}
+    /* quick case */
+    if (oid == 0)
+    {
+        *data++ = 0x80;
+        (*data_len)--;
+        goto out;
+    }
 
-	while (oid >> start == 0)
-		start -= 7;
+    while (oid >> start == 0)
+        start -= 7;
 
-	while (start > 0 && *data_len > 0) {
-		u8 byte;
+    while (start > 0 && *data_len > 0)
+    {
+        u8 byte;
 
-		byte = oid >> start;
-		oid = oid - (byte << start);
-		start -= 7;
-		byte |= 0x80;
-		*data++ = byte;
-		(*data_len)--;
-	}
+        byte = oid >> start;
+        oid  = oid - (byte << start);
+        start -= 7;
+        byte |= 0x80;
+        *data++ = byte;
+        (*data_len)--;
+    }
 
-	if (*data_len > 0) {
-		*data++ = oid;
-		(*data_len)--;
-	} else {
-		ret = -EINVAL;
-	}
+    if (*data_len > 0)
+    {
+        *data++ = oid;
+        (*data_len)--;
+    }
+    else
+    {
+        ret = -EINVAL;
+    }
 
- out:
-	*_data = data;
-	return ret;
+out:
+    *_data = data;
+    return ret;
 }
 
 /**
@@ -138,41 +146,41 @@ static int asn1_encode_oid_digit(unsigned char **_data, int *data_len, u32 oid)
  * this encodes an OID up to ASN.1 when presented as an array of OID values
  */
 unsigned char *
-asn1_encode_oid(unsigned char *data, const unsigned char *end_data,
-		u32 oid[], int oid_len)
+    asn1_encode_oid(unsigned char *data, const unsigned char *end_data,
+                    u32 oid[], int oid_len)
 {
-	int data_len = end_data - data;
-	unsigned char *d = data + 2;
-	int i, ret;
+    int            data_len = end_data - data;
+    unsigned char *d        = data + 2;
+    int            i, ret;
 
-	if (WARN(oid_len < 2, "OID must have at least two elements"))
-		return ERR_PTR(-EINVAL);
+    if (WARN(oid_len < 2, "OID must have at least two elements"))
+        return ERR_PTR(-EINVAL);
 
-	if (WARN(oid_len > 32, "OID is too large"))
-		return ERR_PTR(-EINVAL);
+    if (WARN(oid_len > 32, "OID is too large"))
+        return ERR_PTR(-EINVAL);
 
-	if (IS_ERR(data))
-		return data;
+    if (IS_ERR(data))
+        return data;
 
+    /* need at least 3 bytes for tag, length and OID encoding */
+    if (data_len < 3)
+        return ERR_PTR(-EINVAL);
 
-	/* need at least 3 bytes for tag, length and OID encoding */
-	if (data_len < 3)
-		return ERR_PTR(-EINVAL);
+    data[0] = _tag(UNIV, PRIM, OID);
+    *d++    = oid[0] * 40 + oid[1];
 
-	data[0] = _tag(UNIV, PRIM, OID);
-	*d++ = oid[0] * 40 + oid[1];
+    data_len -= 3;
 
-	data_len -= 3;
+    for (i = 2; i < oid_len; i++)
+    {
+        ret = asn1_encode_oid_digit(&d, &data_len, oid[i]);
+        if (ret < 0)
+            return ERR_PTR(ret);
+    }
 
-	for (i = 2; i < oid_len; i++) {
-		ret = asn1_encode_oid_digit(&d, &data_len, oid[i]);
-		if (ret < 0)
-			return ERR_PTR(ret);
-	}
+    data[1] = d - data - 2;
 
-	data[1] = d - data - 2;
-
-	return d;
+    return d;
 }
 EXPORT_SYMBOL_GPL(asn1_encode_oid);
 
@@ -190,54 +198,58 @@ EXPORT_SYMBOL_GPL(asn1_encode_oid);
  */
 static int asn1_encode_length(unsigned char **data, int *data_len, int len)
 {
-	if (*data_len < 1)
-		return -EINVAL;
+    if (*data_len < 1)
+        return -EINVAL;
 
-	if (len < 0) {
-		*((*data)++) = 0;
-		(*data_len)--;
-		return 0;
-	}
+    if (len < 0)
+    {
+        *((*data)++) = 0;
+        (*data_len)--;
+        return 0;
+    }
 
-	if (len <= 0x7f) {
-		*((*data)++) = len;
-		(*data_len)--;
-		return 0;
-	}
+    if (len <= 0x7f)
+    {
+        *((*data)++) = len;
+        (*data_len)--;
+        return 0;
+    }
 
-	if (*data_len < 2)
-		return -EINVAL;
+    if (*data_len < 2)
+        return -EINVAL;
 
-	if (len <= 0xff) {
-		*((*data)++) = 0x81;
-		*((*data)++) = len & 0xff;
-		*data_len -= 2;
-		return 0;
-	}
+    if (len <= 0xff)
+    {
+        *((*data)++) = 0x81;
+        *((*data)++) = len & 0xff;
+        *data_len -= 2;
+        return 0;
+    }
 
-	if (*data_len < 3)
-		return -EINVAL;
+    if (*data_len < 3)
+        return -EINVAL;
 
-	if (len <= 0xffff) {
-		*((*data)++) = 0x82;
-		*((*data)++) = (len >> 8) & 0xff;
-		*((*data)++) = len & 0xff;
-		*data_len -= 3;
-		return 0;
-	}
+    if (len <= 0xffff)
+    {
+        *((*data)++) = 0x82;
+        *((*data)++) = (len >> 8) & 0xff;
+        *((*data)++) = len & 0xff;
+        *data_len -= 3;
+        return 0;
+    }
 
-	if (WARN(len > 0xffffff, "ASN.1 length can't be > 0xffffff"))
-		return -EINVAL;
+    if (WARN(len > 0xffffff, "ASN.1 length can't be > 0xffffff"))
+        return -EINVAL;
 
-	if (*data_len < 4)
-		return -EINVAL;
-	*((*data)++) = 0x83;
-	*((*data)++) = (len >> 16) & 0xff;
-	*((*data)++) = (len >> 8) & 0xff;
-	*((*data)++) = len & 0xff;
-	*data_len -= 4;
+    if (*data_len < 4)
+        return -EINVAL;
+    *((*data)++) = 0x83;
+    *((*data)++) = (len >> 16) & 0xff;
+    *((*data)++) = (len >> 8) & 0xff;
+    *((*data)++) = len & 0xff;
+    *data_len -= 4;
 
-	return 0;
+    return 0;
 }
 
 /**
@@ -267,51 +279,51 @@ static int asn1_encode_length(unsigned char **data, int *data_len, int len)
  * returned it and still NULL for @string but the real length in @len.
  */
 unsigned char *
-asn1_encode_tag(unsigned char *data, const unsigned char *end_data,
-		u32 tag, const unsigned char *string, int len)
+    asn1_encode_tag(unsigned char *data, const unsigned char *end_data,
+                    u32 tag, const unsigned char *string, int len)
 {
-	int data_len = end_data - data;
-	int ret;
+    int data_len = end_data - data;
+    int ret;
 
-	if (WARN(tag > 30, "ASN.1 tag can't be > 30"))
-		return ERR_PTR(-EINVAL);
+    if (WARN(tag > 30, "ASN.1 tag can't be > 30"))
+        return ERR_PTR(-EINVAL);
 
-	if (!string && WARN(len > 127,
-			    "BUG: recode tag is too big (>127)"))
-		return ERR_PTR(-EINVAL);
+    if (!string && WARN(len > 127, "BUG: recode tag is too big (>127)"))
+        return ERR_PTR(-EINVAL);
 
-	if (IS_ERR(data))
-		return data;
+    if (IS_ERR(data))
+        return data;
 
-	if (!string && len > 0) {
-		/*
-		 * we're recoding, so move back to the start of the
-		 * tag and install a dummy length because the real
-		 * data_len should be NULL
-		 */
-		data -= 2;
-		data_len = 2;
-	}
+    if (!string && len > 0)
+    {
+        /*
+         * we're recoding, so move back to the start of the
+         * tag and install a dummy length because the real
+         * data_len should be NULL
+         */
+        data -= 2;
+        data_len = 2;
+    }
 
-	if (data_len < 2)
-		return ERR_PTR(-EINVAL);
+    if (data_len < 2)
+        return ERR_PTR(-EINVAL);
 
-	*(data++) = _tagn(CONT, CONS, tag);
-	data_len--;
-	ret = asn1_encode_length(&data, &data_len, len);
-	if (ret < 0)
-		return ERR_PTR(ret);
+    *(data++) = _tagn(CONT, CONS, tag);
+    data_len--;
+    ret = asn1_encode_length(&data, &data_len, len);
+    if (ret < 0)
+        return ERR_PTR(ret);
 
-	if (!string)
-		return data;
+    if (!string)
+        return data;
 
-	if (data_len < len)
-		return ERR_PTR(-EINVAL);
+    if (data_len < len)
+        return ERR_PTR(-EINVAL);
 
-	memcpy(data, string, len);
-	data += len;
+    memcpy(data, string, len);
+    data += len;
 
-	return data;
+    return data;
 }
 EXPORT_SYMBOL_GPL(asn1_encode_tag);
 
@@ -325,34 +337,34 @@ EXPORT_SYMBOL_GPL(asn1_encode_tag);
  * Note ASN.1 octet strings may contain zeros, so the length is obligatory.
  */
 unsigned char *
-asn1_encode_octet_string(unsigned char *data,
-			 const unsigned char *end_data,
-			 const unsigned char *string, u32 len)
+    asn1_encode_octet_string(unsigned char       *data,
+                             const unsigned char *end_data,
+                             const unsigned char *string, u32 len)
 {
-	int data_len = end_data - data;
-	int ret;
+    int data_len = end_data - data;
+    int ret;
 
-	if (IS_ERR(data))
-		return data;
+    if (IS_ERR(data))
+        return data;
 
-	/* need minimum of 2 bytes for tag and length of zero length string */
-	if (data_len < 2)
-		return ERR_PTR(-EINVAL);
+    /* need minimum of 2 bytes for tag and length of zero length string */
+    if (data_len < 2)
+        return ERR_PTR(-EINVAL);
 
-	*(data++) = _tag(UNIV, PRIM, OTS);
-	data_len--;
+    *(data++) = _tag(UNIV, PRIM, OTS);
+    data_len--;
 
-	ret = asn1_encode_length(&data, &data_len, len);
-	if (ret)
-		return ERR_PTR(ret);
+    ret = asn1_encode_length(&data, &data_len, len);
+    if (ret)
+        return ERR_PTR(ret);
 
-	if (data_len < len)
-		return ERR_PTR(-EINVAL);
+    if (data_len < len)
+        return ERR_PTR(-EINVAL);
 
-	memcpy(data, string, len);
-	data += len;
+    memcpy(data, string, len);
+    data += len;
 
-	return data;
+    return data;
 }
 EXPORT_SYMBOL_GPL(asn1_encode_octet_string);
 
@@ -370,49 +382,49 @@ EXPORT_SYMBOL_GPL(asn1_encode_octet_string);
  * where the first encode placed it.
  */
 unsigned char *
-asn1_encode_sequence(unsigned char *data, const unsigned char *end_data,
-		     const unsigned char *seq, int len)
+    asn1_encode_sequence(unsigned char *data, const unsigned char *end_data,
+                         const unsigned char *seq, int len)
 {
-	int data_len = end_data - data;
-	int ret;
+    int data_len = end_data - data;
+    int ret;
 
-	if (!seq && WARN(len > 127,
-			 "BUG: recode sequence is too big (>127)"))
-		return ERR_PTR(-EINVAL);
+    if (!seq && WARN(len > 127, "BUG: recode sequence is too big (>127)"))
+        return ERR_PTR(-EINVAL);
 
-	if (IS_ERR(data))
-		return data;
+    if (IS_ERR(data))
+        return data;
 
-	if (!seq && len >= 0) {
-		/*
-		 * we're recoding, so move back to the start of the
-		 * sequence and install a dummy length because the
-		 * real length should be NULL
-		 */
-		data -= 2;
-		data_len = 2;
-	}
+    if (!seq && len >= 0)
+    {
+        /*
+         * we're recoding, so move back to the start of the
+         * sequence and install a dummy length because the
+         * real length should be NULL
+         */
+        data -= 2;
+        data_len = 2;
+    }
 
-	if (data_len < 2)
-		return ERR_PTR(-EINVAL);
+    if (data_len < 2)
+        return ERR_PTR(-EINVAL);
 
-	*(data++) = _tag(UNIV, CONS, SEQ);
-	data_len--;
+    *(data++) = _tag(UNIV, CONS, SEQ);
+    data_len--;
 
-	ret = asn1_encode_length(&data, &data_len, len);
-	if (ret)
-		return ERR_PTR(ret);
+    ret = asn1_encode_length(&data, &data_len, len);
+    if (ret)
+        return ERR_PTR(ret);
 
-	if (!seq)
-		return data;
+    if (!seq)
+        return data;
 
-	if (data_len < len)
-		return ERR_PTR(-EINVAL);
+    if (data_len < len)
+        return ERR_PTR(-EINVAL);
 
-	memcpy(data, seq, len);
-	data += len;
+    memcpy(data, seq, len);
+    data += len;
 
-	return data;
+    return data;
 }
 EXPORT_SYMBOL_GPL(asn1_encode_sequence);
 
@@ -423,29 +435,29 @@ EXPORT_SYMBOL_GPL(asn1_encode_sequence);
  * @val:	the boolean true/false value
  */
 unsigned char *
-asn1_encode_boolean(unsigned char *data, const unsigned char *end_data,
-		    bool val)
+    asn1_encode_boolean(unsigned char *data, const unsigned char *end_data,
+                        bool val)
 {
-	int data_len = end_data - data;
+    int data_len = end_data - data;
 
-	if (IS_ERR(data))
-		return data;
+    if (IS_ERR(data))
+        return data;
 
-	/* booleans are 3 bytes: tag, length == 1 and value == 0 or 1 */
-	if (data_len < 3)
-		return ERR_PTR(-EINVAL);
+    /* booleans are 3 bytes: tag, length == 1 and value == 0 or 1 */
+    if (data_len < 3)
+        return ERR_PTR(-EINVAL);
 
-	*(data++) = _tag(UNIV, PRIM, BOOL);
-	data_len--;
+    *(data++) = _tag(UNIV, PRIM, BOOL);
+    data_len--;
 
-	asn1_encode_length(&data, &data_len, 1);
+    asn1_encode_length(&data, &data_len, 1);
 
-	if (val)
-		*(data++) = 1;
-	else
-		*(data++) = 0;
+    if (val)
+        *(data++) = 1;
+    else
+        *(data++) = 0;
 
-	return data;
+    return data;
 }
 EXPORT_SYMBOL_GPL(asn1_encode_boolean);
 

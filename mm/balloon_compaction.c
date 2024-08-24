@@ -12,18 +12,18 @@
 #include <linux/balloon_compaction.h>
 
 static void balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
-				     struct page *page)
+                                     struct page             *page)
 {
-	/*
-	 * Block others from accessing the 'page' when we get around to
-	 * establishing additional references. We should be the only one
-	 * holding a reference to the 'page' at this point. If we are not, then
-	 * memory corruption is possible and we should stop execution.
-	 */
-	BUG_ON(!trylock_page(page));
-	balloon_page_insert(b_dev_info, page);
-	unlock_page(page);
-	__count_vm_event(BALLOON_INFLATE);
+    /*
+     * Block others from accessing the 'page' when we get around to
+     * establishing additional references. We should be the only one
+     * holding a reference to the 'page' at this point. If we are not, then
+     * memory corruption is possible and we should stop execution.
+     */
+    BUG_ON(!trylock_page(page));
+    balloon_page_insert(b_dev_info, page);
+    unlock_page(page);
+    __count_vm_event(BALLOON_INFLATE);
 }
 
 /**
@@ -38,20 +38,21 @@ static void balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
  * Return: number of pages that were enqueued.
  */
 size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
-				 struct list_head *pages)
+                                 struct list_head        *pages)
 {
-	struct page *page, *tmp;
-	unsigned long flags;
-	size_t n_pages = 0;
+    struct page  *page, *tmp;
+    unsigned long flags;
+    size_t        n_pages = 0;
 
-	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-	list_for_each_entry_safe(page, tmp, pages, lru) {
-		list_del(&page->lru);
-		balloon_page_enqueue_one(b_dev_info, page);
-		n_pages++;
-	}
-	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-	return n_pages;
+    spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+    list_for_each_entry_safe(page, tmp, pages, lru)
+    {
+        list_del(&page->lru);
+        balloon_page_enqueue_one(b_dev_info, page);
+        n_pages++;
+    }
+    spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+    return n_pages;
 }
 EXPORT_SYMBOL_GPL(balloon_page_list_enqueue);
 
@@ -74,40 +75,41 @@ EXPORT_SYMBOL_GPL(balloon_page_list_enqueue);
  * Return: number of pages that were added to the @pages list.
  */
 size_t balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
-				 struct list_head *pages, size_t n_req_pages)
+                                 struct list_head *pages, size_t n_req_pages)
 {
-	struct page *page, *tmp;
-	unsigned long flags;
-	size_t n_pages = 0;
+    struct page  *page, *tmp;
+    unsigned long flags;
+    size_t        n_pages = 0;
 
-	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
-		if (n_pages == n_req_pages)
-			break;
+    spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+    list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru)
+    {
+        if (n_pages == n_req_pages)
+            break;
 
-		/*
-		 * Block others from accessing the 'page' while we get around to
-		 * establishing additional references and preparing the 'page'
-		 * to be released by the balloon driver.
-		 */
-		if (!trylock_page(page))
-			continue;
+        /*
+         * Block others from accessing the 'page' while we get around to
+         * establishing additional references and preparing the 'page'
+         * to be released by the balloon driver.
+         */
+        if (!trylock_page(page))
+            continue;
 
-		if (IS_ENABLED(CONFIG_BALLOON_COMPACTION) &&
-		    PageIsolated(page)) {
-			/* raced with isolation */
-			unlock_page(page);
-			continue;
-		}
-		balloon_page_delete(page);
-		__count_vm_event(BALLOON_DEFLATE);
-		list_add(&page->lru, pages);
-		unlock_page(page);
-		n_pages++;
-	}
-	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+        if (IS_ENABLED(CONFIG_BALLOON_COMPACTION) && PageIsolated(page))
+        {
+            /* raced with isolation */
+            unlock_page(page);
+            continue;
+        }
+        balloon_page_delete(page);
+        __count_vm_event(BALLOON_DEFLATE);
+        list_add(&page->lru, pages);
+        unlock_page(page);
+        n_pages++;
+    }
+    spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
 
-	return n_pages;
+    return n_pages;
 }
 EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
 
@@ -123,10 +125,8 @@ EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
  */
 struct page *balloon_page_alloc(void)
 {
-	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
-				       __GFP_NOMEMALLOC | __GFP_NORETRY |
-				       __GFP_NOWARN);
-	return page;
+    struct page *page = alloc_page(balloon_mapping_gfp_mask() | __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN);
+    return page;
 }
 EXPORT_SYMBOL_GPL(balloon_page_alloc);
 
@@ -144,13 +144,13 @@ EXPORT_SYMBOL_GPL(balloon_page_alloc);
  * enqueue a list of pages, use balloon_page_list_enqueue instead.
  */
 void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
-			  struct page *page)
+                          struct page             *page)
 {
-	unsigned long flags;
+    unsigned long flags;
 
-	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-	balloon_page_enqueue_one(b_dev_info, page);
-	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+    spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+    balloon_page_enqueue_one(b_dev_info, page);
+    spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
 }
 EXPORT_SYMBOL_GPL(balloon_page_enqueue);
 
@@ -176,28 +176,28 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
  */
 struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
 {
-	unsigned long flags;
-	LIST_HEAD(pages);
-	int n_pages;
+    unsigned long flags;
+    LIST_HEAD(pages);
+    int n_pages;
 
-	n_pages = balloon_page_list_dequeue(b_dev_info, &pages, 1);
+    n_pages = balloon_page_list_dequeue(b_dev_info, &pages, 1);
 
-	if (n_pages != 1) {
-		/*
-		 * If we are unable to dequeue a balloon page because the page
-		 * list is empty and there are no isolated pages, then something
-		 * went out of track and some balloon pages are lost.
-		 * BUG() here, otherwise the balloon driver may get stuck in
-		 * an infinite loop while attempting to release all its pages.
-		 */
-		spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-		if (unlikely(list_empty(&b_dev_info->pages) &&
-			     !b_dev_info->isolated_pages))
-			BUG();
-		spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-		return NULL;
-	}
-	return list_first_entry(&pages, struct page, lru);
+    if (n_pages != 1)
+    {
+        /*
+         * If we are unable to dequeue a balloon page because the page
+         * list is empty and there are no isolated pages, then something
+         * went out of track and some balloon pages are lost.
+         * BUG() here, otherwise the balloon driver may get stuck in
+         * an infinite loop while attempting to release all its pages.
+         */
+        spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+        if (unlikely(list_empty(&b_dev_info->pages) && !b_dev_info->isolated_pages))
+            BUG();
+        spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+        return NULL;
+    }
+    return list_first_entry(&pages, struct page, lru);
 }
 EXPORT_SYMBOL_GPL(balloon_page_dequeue);
 
@@ -206,52 +206,52 @@ EXPORT_SYMBOL_GPL(balloon_page_dequeue);
 static bool balloon_page_isolate(struct page *page, isolate_mode_t mode)
 
 {
-	struct balloon_dev_info *b_dev_info = balloon_page_device(page);
-	unsigned long flags;
+    struct balloon_dev_info *b_dev_info = balloon_page_device(page);
+    unsigned long            flags;
 
-	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-	list_del(&page->lru);
-	b_dev_info->isolated_pages++;
-	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+    spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+    list_del(&page->lru);
+    b_dev_info->isolated_pages++;
+    spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
 
-	return true;
+    return true;
 }
 
 static void balloon_page_putback(struct page *page)
 {
-	struct balloon_dev_info *b_dev_info = balloon_page_device(page);
-	unsigned long flags;
+    struct balloon_dev_info *b_dev_info = balloon_page_device(page);
+    unsigned long            flags;
 
-	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-	list_add(&page->lru, &b_dev_info->pages);
-	b_dev_info->isolated_pages--;
-	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+    spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+    list_add(&page->lru, &b_dev_info->pages);
+    b_dev_info->isolated_pages--;
+    spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
 }
 
 /* move_to_new_page() counterpart for a ballooned page */
 static int balloon_page_migrate(struct page *newpage, struct page *page,
-		enum migrate_mode mode)
+                                enum migrate_mode mode)
 {
-	struct balloon_dev_info *balloon = balloon_page_device(page);
+    struct balloon_dev_info *balloon = balloon_page_device(page);
 
-	/*
-	 * We can not easily support the no copy case here so ignore it as it
-	 * is unlikely to be used with balloon pages. See include/linux/hmm.h
-	 * for a user of the MIGRATE_SYNC_NO_COPY mode.
-	 */
-	if (mode == MIGRATE_SYNC_NO_COPY)
-		return -EINVAL;
+    /*
+     * We can not easily support the no copy case here so ignore it as it
+     * is unlikely to be used with balloon pages. See include/linux/hmm.h
+     * for a user of the MIGRATE_SYNC_NO_COPY mode.
+     */
+    if (mode == MIGRATE_SYNC_NO_COPY)
+        return -EINVAL;
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
+    VM_BUG_ON_PAGE(!PageLocked(page), page);
+    VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
 
-	return balloon->migratepage(balloon, newpage, page, mode);
+    return balloon->migratepage(balloon, newpage, page, mode);
 }
 
 const struct movable_operations balloon_mops = {
-	.migrate_page = balloon_page_migrate,
-	.isolate_page = balloon_page_isolate,
-	.putback_page = balloon_page_putback,
+    .migrate_page = balloon_page_migrate,
+    .isolate_page = balloon_page_isolate,
+    .putback_page = balloon_page_putback,
 };
 EXPORT_SYMBOL_GPL(balloon_mops);
 
