@@ -15,4 +15,4 @@ extern const struct crypto_type crypto_shash_type;
 
 int hash_prepare_alg(struct hash_alg_common *alg);
 
-#endif	/* _LOCAL_CRYPTO_HASH_H */
+#endif /* _LOCAL_CRYPTO_HASH_H */

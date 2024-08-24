@@ -17,92 +17,95 @@
  * scan_hint == contig_hint.  This is necessary because when scanning forward,
  * we don't know if a new contig hint would be better than the current one.
  */
-struct pcpu_block_md {
-	int			scan_hint;	/* scan hint for block */
-	int			scan_hint_start; /* block relative starting
-						    position of the scan hint */
-	int                     contig_hint;    /* contig hint for block */
-	int                     contig_hint_start; /* block relative starting
-						      position of the contig hint */
-	int                     left_free;      /* size of free space along
-						   the left side of the block */
-	int                     right_free;     /* size of free space along
-						   the right side of the block */
-	int                     first_free;     /* block position of first free */
-	int			nr_bits;	/* total bits responsible for */
+struct pcpu_block_md
+{
+    int scan_hint;         /* scan hint for block */
+    int scan_hint_start;   /* block relative starting
+                              position of the scan hint */
+    int contig_hint;       /* contig hint for block */
+    int contig_hint_start; /* block relative starting
+                              position of the contig hint */
+    int left_free;         /* size of free space along
+                              the left side of the block */
+    int right_free;        /* size of free space along
+                              the right side of the block */
+    int first_free;        /* block position of first free */
+    int nr_bits;           /* total bits responsible for */
 };
 
-struct pcpuobj_ext {
+struct pcpuobj_ext
+{
 #ifdef CONFIG_MEMCG_KMEM
-	struct obj_cgroup	*cgroup;
+    struct obj_cgroup *cgroup;
 #endif
 #ifdef CONFIG_MEM_ALLOC_PROFILING
-	union codetag_ref	tag;
+    union codetag_ref tag;
 #endif
 };
 
 #if defined(CONFIG_MEMCG_KMEM) || defined(CONFIG_MEM_ALLOC_PROFILING)
-#define NEED_PCPUOBJ_EXT
+    #define NEED_PCPUOBJ_EXT
 #endif
 
-struct pcpu_chunk {
+struct pcpu_chunk
+{
 #ifdef CONFIG_PERCPU_STATS
-	int			nr_alloc;	/* # of allocations */
-	size_t			max_alloc_size; /* largest allocation size */
+    int    nr_alloc;       /* # of allocations */
+    size_t max_alloc_size; /* largest allocation size */
 #endif
 
-	struct list_head	list;		/* linked to pcpu_slot lists */
-	int			free_bytes;	/* free bytes in the chunk */
-	struct pcpu_block_md	chunk_md;
-	unsigned long		*bound_map;	/* boundary map */
+    struct list_head     list;       /* linked to pcpu_slot lists */
+    int                  free_bytes; /* free bytes in the chunk */
+    struct pcpu_block_md chunk_md;
+    unsigned long       *bound_map; /* boundary map */
 
-	/*
-	 * base_addr is the base address of this chunk.
-	 * To reduce false sharing, current layout is optimized to make sure
-	 * base_addr locate in the different cacheline with free_bytes and
-	 * chunk_md.
-	 */
-	void			*base_addr ____cacheline_aligned_in_smp;
+    /*
+     * base_addr is the base address of this chunk.
+     * To reduce false sharing, current layout is optimized to make sure
+     * base_addr locate in the different cacheline with free_bytes and
+     * chunk_md.
+     */
+    void *base_addr ____cacheline_aligned_in_smp;
 
-	unsigned long		*alloc_map;	/* allocation map */
-	struct pcpu_block_md	*md_blocks;	/* metadata blocks */
+    unsigned long        *alloc_map; /* allocation map */
+    struct pcpu_block_md *md_blocks; /* metadata blocks */
 
-	void			*data;		/* chunk data */
-	bool			immutable;	/* no [de]population allowed */
-	bool			isolated;	/* isolated from active chunk
-						   slots */
-	int			start_offset;	/* the overlap with the previous
-						   region to have a page aligned
-						   base_addr */
-	int			end_offset;	/* additional area required to
-						   have the region end page
-						   aligned */
+    void *data;       /* chunk data */
+    bool  immutable;  /* no [de]population allowed */
+    bool  isolated;   /* isolated from active chunk
+                         slots */
+    int start_offset; /* the overlap with the previous
+                         region to have a page aligned
+                         base_addr */
+    int end_offset;   /* additional area required to
+                         have the region end page
+                         aligned */
 #ifdef NEED_PCPUOBJ_EXT
-	struct pcpuobj_ext	*obj_exts;	/* vector of object cgroups */
+    struct pcpuobj_ext *obj_exts; /* vector of object cgroups */
 #endif
 
-	int			nr_pages;	/* # of pages served by this chunk */
-	int			nr_populated;	/* # of populated pages */
-	int                     nr_empty_pop_pages; /* # of empty populated pages */
-	unsigned long		populated[];	/* populated bitmap */
+    int           nr_pages;           /* # of pages served by this chunk */
+    int           nr_populated;       /* # of populated pages */
+    int           nr_empty_pop_pages; /* # of empty populated pages */
+    unsigned long populated[];        /* populated bitmap */
 };
 
 static inline bool need_pcpuobj_ext(void)
 {
-	if (IS_ENABLED(CONFIG_MEM_ALLOC_PROFILING))
-		return true;
-	if (!mem_cgroup_kmem_disabled())
-		return true;
-	return false;
+    if (IS_ENABLED(CONFIG_MEM_ALLOC_PROFILING))
+        return true;
+    if (!mem_cgroup_kmem_disabled())
+        return true;
+    return false;
 }
 
 extern spinlock_t pcpu_lock;
 
 extern struct list_head *pcpu_chunk_lists;
-extern int pcpu_nr_slots;
-extern int pcpu_sidelined_slot;
-extern int pcpu_to_depopulate_slot;
-extern int pcpu_nr_empty_pop_pages;
+extern int               pcpu_nr_slots;
+extern int               pcpu_sidelined_slot;
+extern int               pcpu_to_depopulate_slot;
+extern int               pcpu_nr_empty_pop_pages;
 
 extern struct pcpu_chunk *pcpu_first_chunk;
 extern struct pcpu_chunk *pcpu_reserved_chunk;
@@ -116,7 +119,7 @@ extern struct pcpu_chunk *pcpu_reserved_chunk;
  */
 static inline int pcpu_chunk_nr_blocks(struct pcpu_chunk *chunk)
 {
-	return chunk->nr_pages * PAGE_SIZE / PCPU_BITMAP_BLOCK_SIZE;
+    return chunk->nr_pages * PAGE_SIZE / PCPU_BITMAP_BLOCK_SIZE;
 }
 
 /**
@@ -128,7 +131,7 @@ static inline int pcpu_chunk_nr_blocks(struct pcpu_chunk *chunk)
  */
 static inline int pcpu_nr_pages_to_map_bits(int pages)
 {
-	return pages * PAGE_SIZE / PCPU_MIN_ALLOC_SIZE;
+    return pages * PAGE_SIZE / PCPU_MIN_ALLOC_SIZE;
 }
 
 /**
@@ -140,7 +143,7 @@ static inline int pcpu_nr_pages_to_map_bits(int pages)
  */
 static inline int pcpu_chunk_map_bits(struct pcpu_chunk *chunk)
 {
-	return pcpu_nr_pages_to_map_bits(chunk->nr_pages);
+    return pcpu_nr_pages_to_map_bits(chunk->nr_pages);
 }
 
 /**
@@ -152,32 +155,33 @@ static inline int pcpu_chunk_map_bits(struct pcpu_chunk *chunk)
  */
 static inline size_t pcpu_obj_full_size(size_t size)
 {
-	size_t extra_size = 0;
+    size_t extra_size = 0;
 
 #ifdef CONFIG_MEMCG_KMEM
-	if (!mem_cgroup_kmem_disabled())
-		extra_size += size / PCPU_MIN_ALLOC_SIZE * sizeof(struct obj_cgroup *);
+    if (!mem_cgroup_kmem_disabled())
+        extra_size += size / PCPU_MIN_ALLOC_SIZE * sizeof(struct obj_cgroup *);
 #endif
 
-	return size * num_possible_cpus() + extra_size;
+    return size * num_possible_cpus() + extra_size;
 }
 
 #ifdef CONFIG_PERCPU_STATS
 
-#include <linux/spinlock.h>
+    #include <linux/spinlock.h>
 
-struct percpu_stats {
-	u64 nr_alloc;		/* lifetime # of allocations */
-	u64 nr_dealloc;		/* lifetime # of deallocations */
-	u64 nr_cur_alloc;	/* current # of allocations */
-	u64 nr_max_alloc;	/* max # of live allocations */
-	u32 nr_chunks;		/* current # of live chunks */
-	u32 nr_max_chunks;	/* max # of live chunks */
-	size_t min_alloc_size;	/* min allocation size */
-	size_t max_alloc_size;	/* max allocation size */
+struct percpu_stats
+{
+    u64    nr_alloc;       /* lifetime # of allocations */
+    u64    nr_dealloc;     /* lifetime # of deallocations */
+    u64    nr_cur_alloc;   /* current # of allocations */
+    u64    nr_max_alloc;   /* max # of live allocations */
+    u32    nr_chunks;      /* current # of live chunks */
+    u32    nr_max_chunks;  /* max # of live chunks */
+    size_t min_alloc_size; /* min allocation size */
+    size_t max_alloc_size; /* max allocation size */
 };
 
-extern struct percpu_stats pcpu_stats;
+extern struct percpu_stats    pcpu_stats;
 extern struct pcpu_alloc_info pcpu_stats_ai;
 
 /*
@@ -185,10 +189,10 @@ extern struct pcpu_alloc_info pcpu_stats_ai;
  */
 static inline void pcpu_stats_save_ai(const struct pcpu_alloc_info *ai)
 {
-	memcpy(&pcpu_stats_ai, ai, sizeof(struct pcpu_alloc_info));
+    memcpy(&pcpu_stats_ai, ai, sizeof(struct pcpu_alloc_info));
 
-	/* initialize min_alloc_size to unit_size */
-	pcpu_stats.min_alloc_size = pcpu_stats_ai.unit_size;
+    /* initialize min_alloc_size to unit_size */
+    pcpu_stats.min_alloc_size = pcpu_stats_ai.unit_size;
 }
 
 /*
@@ -201,19 +205,19 @@ static inline void pcpu_stats_save_ai(const struct pcpu_alloc_info *ai)
  */
 static inline void pcpu_stats_area_alloc(struct pcpu_chunk *chunk, size_t size)
 {
-	lockdep_assert_held(&pcpu_lock);
+    lockdep_assert_held(&pcpu_lock);
 
-	pcpu_stats.nr_alloc++;
-	pcpu_stats.nr_cur_alloc++;
-	pcpu_stats.nr_max_alloc =
-		max(pcpu_stats.nr_max_alloc, pcpu_stats.nr_cur_alloc);
-	pcpu_stats.min_alloc_size =
-		min(pcpu_stats.min_alloc_size, size);
-	pcpu_stats.max_alloc_size =
-		max(pcpu_stats.max_alloc_size, size);
+    pcpu_stats.nr_alloc++;
+    pcpu_stats.nr_cur_alloc++;
+    pcpu_stats.nr_max_alloc =
+        max(pcpu_stats.nr_max_alloc, pcpu_stats.nr_cur_alloc);
+    pcpu_stats.min_alloc_size =
+        min(pcpu_stats.min_alloc_size, size);
+    pcpu_stats.max_alloc_size =
+        max(pcpu_stats.max_alloc_size, size);
 
-	chunk->nr_alloc++;
-	chunk->max_alloc_size = max(chunk->max_alloc_size, size);
+    chunk->nr_alloc++;
+    chunk->max_alloc_size = max(chunk->max_alloc_size, size);
 }
 
 /*
@@ -225,12 +229,12 @@ static inline void pcpu_stats_area_alloc(struct pcpu_chunk *chunk, size_t size)
  */
 static inline void pcpu_stats_area_dealloc(struct pcpu_chunk *chunk)
 {
-	lockdep_assert_held(&pcpu_lock);
+    lockdep_assert_held(&pcpu_lock);
 
-	pcpu_stats.nr_dealloc++;
-	pcpu_stats.nr_cur_alloc--;
+    pcpu_stats.nr_dealloc++;
+    pcpu_stats.nr_cur_alloc--;
 
-	chunk->nr_alloc--;
+    chunk->nr_alloc--;
 }
 
 /*
@@ -238,14 +242,14 @@ static inline void pcpu_stats_area_dealloc(struct pcpu_chunk *chunk)
  */
 static inline void pcpu_stats_chunk_alloc(void)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&pcpu_lock, flags);
+    unsigned long flags;
+    spin_lock_irqsave(&pcpu_lock, flags);
 
-	pcpu_stats.nr_chunks++;
-	pcpu_stats.nr_max_chunks =
-		max(pcpu_stats.nr_max_chunks, pcpu_stats.nr_chunks);
+    pcpu_stats.nr_chunks++;
+    pcpu_stats.nr_max_chunks =
+        max(pcpu_stats.nr_max_chunks, pcpu_stats.nr_chunks);
 
-	spin_unlock_irqrestore(&pcpu_lock, flags);
+    spin_unlock_irqrestore(&pcpu_lock, flags);
 }
 
 /*
@@ -253,12 +257,12 @@ static inline void pcpu_stats_chunk_alloc(void)
  */
 static inline void pcpu_stats_chunk_dealloc(void)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&pcpu_lock, flags);
+    unsigned long flags;
+    spin_lock_irqsave(&pcpu_lock, flags);
 
-	pcpu_stats.nr_chunks--;
+    pcpu_stats.nr_chunks--;
 
-	spin_unlock_irqrestore(&pcpu_lock, flags);
+    spin_unlock_irqrestore(&pcpu_lock, flags);
 }
 
 #else

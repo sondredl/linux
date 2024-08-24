@@ -15,4 +15,4 @@ int crypto_lskcipher_decrypt_sg(struct skcipher_request *req);
 int crypto_init_lskcipher_ops_sg(struct crypto_tfm *tfm);
 int skcipher_prepare_alg_common(struct skcipher_alg_common *alg);
 
-#endif	/* _LOCAL_CRYPTO_SKCIPHER_H */
+#endif /* _LOCAL_CRYPTO_SKCIPHER_H */
